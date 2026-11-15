@@ -1,6 +1,7 @@
 """Persistence and consent tests using an in-memory SQLite database."""
 
 import dataclasses
+import json
 import sqlite3
 import unittest
 from datetime import datetime, timezone
@@ -15,6 +16,8 @@ from emotion_engine import (
     ConsentStatus,
     EmotionLabel,
     EvidenceOrigin,
+    EncryptionError,
+    EncryptionKeyRequiredError,
     RecordNotFoundError,
     RecordValidationError,
     SQLiteEmotionStore,
@@ -24,6 +27,7 @@ from emotion_engine import (
 
 
 FIXED_TIME = datetime(2026, 11, 15, 10, 30, tzinfo=timezone.utc)
+TEST_KEY = bytes(range(32))
 
 
 def approved_event(record_id="event-001"):
@@ -60,7 +64,7 @@ def approved_event(record_id="event-001"):
 
 class SQLiteEmotionStoreTests(unittest.TestCase):
     def setUp(self):
-        self.store = SQLiteEmotionStore(":memory:")
+        self.store = SQLiteEmotionStore(\n            ":memory:", encryption_key=TEST_KEY, consent_verifier=lambda record: True\n        )
 
     def tearDown(self):
         self.store.close()
@@ -207,6 +211,95 @@ class SQLiteEmotionStoreTests(unittest.TestCase):
         self.store.record_agent_action(action)
         with self.assertRaises(sqlite3.IntegrityError):
             self.store.record_agent_action(action)
+
+
+    def test_user_event_payload_is_encrypted_at_rest(self):
+        event = approved_event()
+        self.store.save_user_event(event)
+
+        row = self.store._connection.execute(
+            "SELECT payload_json FROM user_events WHERE record_id = ?",
+            (event.record_id,),
+        ).fetchone()
+
+        self.assertTrue(row["payload_json"].startswith("enc:v1:"))
+        self.assertNotIn(event.summary, row["payload_json"])
+
+    def test_user_event_write_requires_an_encryption_key(self):
+        store = SQLiteEmotionStore(
+            ":memory:", consent_verifier=lambda record: True
+        )
+        try:
+            with self.assertRaises(EncryptionKeyRequiredError):
+                store.save_user_event(approved_event("no-key"))
+        finally:
+            store.close()
+
+    def test_granted_flag_is_not_enough_without_a_consent_verifier(self):
+        store = SQLiteEmotionStore(":memory:", encryption_key=TEST_KEY)
+        try:
+            with self.assertRaises(ConsentRequiredError):
+                store.save_user_event(approved_event("no-verifier"))
+        finally:
+            store.close()
+
+    def test_consent_verifier_can_reject_a_granted_record(self):
+        store = SQLiteEmotionStore(
+            ":memory:",
+            encryption_key=TEST_KEY,
+            consent_verifier=lambda record: False,
+        )
+        try:
+            with self.assertRaises(ConsentRequiredError):
+                store.save_user_event(approved_event("denied"))
+        finally:
+            store.close()
+
+    def test_tampered_ciphertext_is_rejected(self):
+        event = approved_event()
+        self.store.save_user_event(event)
+        self.store._connection.execute(
+            "UPDATE user_events SET payload_json = ? WHERE record_id = ?",
+            ("enc:v1:YWJj", event.record_id),
+        )
+
+        with self.assertRaises(EncryptionError):
+            self.store.get_user_event(event.record_id)
+
+    def test_export_contains_user_memories_in_a_versioned_envelope(self):
+        event = approved_event()
+        self.store.save_user_event(event)
+
+        exported = json.loads(self.store.export_user_events())
+
+        self.assertEqual(exported["format"], "emotion-engine-user-events")
+        self.assertEqual(exported["format_version"], 1)
+        self.assertEqual(exported["record_count"], 1)
+        self.assertEqual(exported["records"][0]["record_id"], event.record_id)
+
+    def test_retention_deletes_records_by_recorded_at(self):
+        old = dataclasses.replace(
+            approved_event("old-memory"),
+            recorded_at=datetime(2026, 9, 1, tzinfo=timezone.utc),
+        )
+        recent = dataclasses.replace(
+            approved_event("recent-memory"),
+            recorded_at=datetime(2026, 11, 1, tzinfo=timezone.utc),
+        )
+        self.store.save_user_event(old)
+        self.store.save_user_event(recent)
+
+        deleted = self.store.delete_user_events_before(
+            datetime(2026, 10, 1, tzinfo=timezone.utc)
+        )
+
+        self.assertEqual(deleted, 1)
+        self.assertIsNone(self.store.get_user_event("old-memory"))
+        self.assertIsNotNone(self.store.get_user_event("recent-memory"))
+
+    def test_retention_requires_timezone_aware_cutoff(self):
+        with self.assertRaises(RecordValidationError):
+            self.store.delete_user_events_before(datetime(2026, 10, 1))
 
     def test_closed_store_rejects_further_operations(self):
         self.store.close()
