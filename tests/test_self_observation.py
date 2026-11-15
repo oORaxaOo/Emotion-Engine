@@ -179,7 +179,7 @@ class SelfObservationEngineTests(unittest.TestCase):
     def test_cascade_stops_at_configured_step_budget(self):
         engine = self.make_engine(outputs=[
             output(),
-            output(answer="The second trace adds a source selection.", answer_refs=["trace-002"]),
+            output(answer="The second trace adds a source selection.", answer_refs=["trace-002"], evidence_id="trace-002"),
         ], max_steps=2)
         cascade = engine.start(action(), (evidence(),))
         cascade = engine.continue_cascade(
@@ -246,6 +246,14 @@ class SelfObservationEngineTests(unittest.TestCase):
             next_question_reason="There is no further evidence request.",
             evidence_to_collect=[],
         )])
+        with self.assertRaises(ModelOutputError):
+            engine.start(action(), (evidence(),))
+
+
+    def test_next_question_must_cite_current_evidence(self):
+        raw = json.loads(output())
+        raw["next_question_evidence_refs"] = ["not-in-input"]
+        engine = self.make_engine(outputs=[json.dumps(raw)])
         with self.assertRaises(ModelOutputError):
             engine.start(action(), (evidence(),))
 
