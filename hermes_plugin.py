@@ -5,7 +5,11 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import Any
 from uuid import uuid4
-from emotion_engine import ActionOutcome, AgentActionRecord, ReflectionCascade, ReflectionEvidence, ReflectionEvidenceSource, SelfObservationEngine
+try:
+    from .emotion_engine import ActionOutcome, AgentActionRecord, ReflectionCascade, ReflectionEvidence, ReflectionEvidenceSource, SelfObservationEngine
+except ImportError:
+    # Allows the same adapter to be unit-tested as a top-level module.
+    from emotion_engine import ActionOutcome, AgentActionRecord, ReflectionCascade, ReflectionEvidence, ReflectionEvidenceSource, SelfObservationEngine
 
 logger = logging.getLogger(__name__)
 PLUGIN_ID = "emotion-engine"
