@@ -457,7 +457,7 @@ class SQLiteEmotionStore:
         rows = self._connection.execute(
             """
             SELECT record_id, payload_json FROM user_events
-            ORDER BY recorded_at DESC, record_id ASC
+            ORDER BY julianday(recorded_at) DESC, record_id ASC
             LIMIT ?
             """,
             (limit,),
@@ -478,7 +478,7 @@ class SQLiteEmotionStore:
         rows = self._connection.execute(
             """
             SELECT record_id, payload_json FROM user_events
-            ORDER BY recorded_at ASC, record_id ASC
+            ORDER BY julianday(recorded_at) ASC, record_id ASC
             LIMIT ?
             """,
             (_MAX_EXPORT_RECORDS + 1,),

@@ -25,7 +25,7 @@ Affective computation, self-monitoring, memory, and complex adaptive behaviour d
 
 **Phase 4 — Bounded model adapter:** merged in PR #5. A one-shot provider-neutral adapter accepts a small caller-selected evidence envelope, requests strict JSON, validates the response, and returns an ephemeral proposal. It performs no database writes and does not change internal state.
 
-**Phase 5 — Memory lifecycle and privacy:** implementation in review. User-event payload encryption, a required application consent verifier, versioned export, explicit retention, and review/forget operations are being added. This does not yet authorize real-data deployment.
+**Phase 5 — Memory lifecycle and privacy:** implementation submitted for review. User-event payload encryption, a required application consent verifier, versioned export, explicit retention, and review/forget operations are included. This does not yet authorize real-data deployment.
 
 **Privacy warning:** Phase 5 encrypts user-event payloads, but it does not encrypt the entire SQLite database. Record IDs and timestamps, technical action/state tables, local backups, and exported JSON remain outside that payload-encryption boundary. The host application must securely store the 32-byte key, implement real user consent UI and access control, and manage backups/logs. Do not use real personal or emotional data until those deployment controls have been implemented and reviewed.
 
@@ -64,9 +64,12 @@ Affective computation, self-monitoring, memory, and complex adaptive behaviour d
 
 ## Local test command
 
-From the repository root:
+From the repository root, create a virtual environment, install the one encryption dependency, and run the suite:
 
 ```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
 python -m unittest discover -s tests -v
 ```
 
