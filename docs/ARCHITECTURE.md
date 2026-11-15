@@ -43,9 +43,9 @@ The Phase 6 prototype keeps an explicit in-memory cascade state: current step, r
 
 ### 2.7 Self-Observation
 
-The self-observation module reviews one recorded agent action against caller-selected, source-labelled operational evidence. Its strict output contract separates a trace assessment, evidence-linked finding, explicitly tentative causal hypotheses, limitations, and at most one generated follow-up question. Every continuation requires new external evidence and one explicit host call. The maximum is four model invocations per cascade.
+The self-observation module reviews one recorded agent action against caller-selected, source-labelled operational evidence. Its strict output contract separates a trace assessment, evidence-linked finding, mandatory self-challenge, explicitly tentative causal hypotheses, limitations, and at most one generated follow-up question. Every continuation requires new external evidence and one explicit host call. The maximum is four model invocations per cascade.
 
-The model can evaluate only what the host supplies. A mismatch may show that an answer was unsupported or contradicted; it does not establish deliberate deception or a hidden motive. The module cannot inspect model weights, activations, or private reasoning. Its parser checks structure and evidence-ID membership, not whether the cited text semantically proves the claim.
+The model is instructed to actively try to falsify its recorded decision before proposing causes. It can evaluate only what the host supplies. A mismatch may show that an answer was unsupported or contradicted; it does not establish deliberate deception or a hidden motive. The module cannot inspect model weights, activations, or private reasoning. Its parser checks structure and evidence-ID membership, not whether the cited text semantically proves the claim.
 
 ## 3. Processing flow
 

@@ -42,7 +42,9 @@ class ReflectionEvidenceSource(str, Enum):
     """Allowed kinds of observable operational evidence."""
 
     ACTION_TRACE = "action_trace"
+    REQUEST_CONTEXT = "request_context"
     RESPONSE_RECORD = "response_record"
+    MODEL_OUTPUT = "model_output"
     TOOL_RESULT = "tool_result"
     POLICY_TRACE = "policy_trace"
     OUTCOME_RECORD = "outcome_record"
@@ -140,6 +142,8 @@ class ReflectionStep:
     assessment: ReflectionAssessment
     finding: str
     finding_evidence_refs: tuple[str, ...]
+    self_challenge: str
+    self_challenge_evidence_refs: tuple[str, ...]
     inquiry_answer: str | None
     inquiry_answer_evidence_refs: tuple[str, ...]
     causal_hypotheses: tuple[ReflectionHypothesis, ...]
@@ -168,6 +172,14 @@ class ReflectionStep:
         finding_refs = _string_tuple(
             "finding_evidence_refs",
             self.finding_evidence_refs,
+            minimum=1,
+            maximum_items=8,
+            maximum_chars=MAX_REFLECTION_EVIDENCE_ID_CHARS,
+        )
+        _text("self_challenge", self.self_challenge, maximum=1000)
+        challenge_refs = _string_tuple(
+            "self_challenge_evidence_refs",
+            self.self_challenge_evidence_refs,
             minimum=1,
             maximum_items=8,
             maximum_chars=MAX_REFLECTION_EVIDENCE_ID_CHARS,
@@ -229,7 +241,7 @@ class ReflectionStep:
             raise RecordValidationError("evidence_fingerprints must be lowercase SHA-256 hex digests")
         if len(fingerprints) != len(evidence_ids):
             raise RecordValidationError("each evidence item must have one fingerprint")
-        all_refs = list(finding_refs) + list(answer_refs)
+        all_refs = list(finding_refs) + list(challenge_refs) + list(answer_refs)
         for hypothesis in hypotheses:
             all_refs.extend(hypothesis.evidence_refs)
         if any(ref not in allowed for ref in all_refs):
@@ -284,6 +296,7 @@ class ReflectionStep:
             raise RecordValidationError("a reflection step must use exactly one invocation")
 
         object.__setattr__(self, "finding_evidence_refs", finding_refs)
+        object.__setattr__(self, "self_challenge_evidence_refs", challenge_refs)
         object.__setattr__(self, "inquiry_answer_evidence_refs", answer_refs)
         object.__setattr__(self, "causal_hypotheses", hypotheses)
         object.__setattr__(self, "limitations", limitations)
@@ -430,6 +443,8 @@ def _parse_step(
         "assessment",
         "finding",
         "finding_evidence_refs",
+        "self_challenge",
+        "self_challenge_evidence_refs",
         "inquiry_answer",
         "inquiry_answer_evidence_refs",
         "causal_hypotheses",
@@ -454,6 +469,14 @@ def _parse_step(
         finding = _text("finding", payload["finding"], maximum=1200)
         finding_refs = _parse_refs(
             payload["finding_evidence_refs"], "finding_evidence_refs", allowed
+        )
+        self_challenge = _text(
+            "self_challenge", payload["self_challenge"], maximum=1000
+        )
+        self_challenge_refs = _parse_refs(
+            payload["self_challenge_evidence_refs"],
+            "self_challenge_evidence_refs",
+            allowed,
         )
 
         inquiry_answer = payload["inquiry_answer"]
@@ -529,6 +552,8 @@ def _parse_step(
             assessment=assessment,
             finding=finding,
             finding_evidence_refs=finding_refs,
+            self_challenge=self_challenge,
+            self_challenge_evidence_refs=self_challenge_refs,
             inquiry_answer=inquiry_answer,
             inquiry_answer_evidence_refs=inquiry_answer_refs,
             causal_hypotheses=tuple(hypotheses),
@@ -666,11 +691,14 @@ class SelfObservationEngine:
             "Audit one recorded action using only the supplied operational trace.\n\n"
             "Your task:\n"
             "1. Classify what the supplied trace supports, contradicts, or leaves unknown.\n"
-            "2. State one concise finding and cite its evidence IDs.\n"
-            "3. Offer up to three possible operational explanations as hypotheses only.\n"
-            "4. On a continuation step, answer the previous question only to the extent "
+            "2. First actively try to falsify or disconfirm the recorded decision. "
+            "State the strongest counterevidence or missing trace and cite it. "
+            "Do not defend the output merely because it is your output.\n"
+            "3. State one concise finding and cite its evidence IDs.\n"
+            "4. Offer up to three possible operational explanations as hypotheses only.\n"
+            "5. On a continuation step, answer the previous question only to the extent "
             "that the NEW evidence supports an answer; cite the new evidence.\n"
-            "5. Ask at most one next question, generated from this case, only when "
+            "6. Ask at most one next question, generated from this case, only when "
             "additional concrete evidence could materially reduce uncertainty. Prefer "
             "a useful causal 'why' or 'how' question when the trace warrants it. Name "
             "the concrete trace that should be collected.\n\n"
@@ -694,6 +722,7 @@ class SelfObservationEngine:
             'Assessment must be exactly one of: supported, unsupported, contradicted, mixed, undetermined.\n'
             '{"schema_version":"0.1","assessment":"undetermined",'
             '"finding":"concise evidence-grounded finding","finding_evidence_refs":["id"],'
+            '"self_challenge":"strongest counterevidence or missing trace","self_challenge_evidence_refs":["id"],'
             '"inquiry_answer":null,"inquiry_answer_evidence_refs":[],"causal_hypotheses":'
             '[{"statement":"possible cause, not a fact","evidence_refs":["id"]}],'
             '"limitations":["what this trace cannot establish"],"next_question":null,'

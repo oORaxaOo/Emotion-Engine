@@ -12,7 +12,7 @@ The question sequence is generated from each case. There is no hard-coded final 
 
 The engine can examine:
 - a recorded action and its declared component, operation, summary, outcome, and timestamp;
-- explicitly supplied response records, tool results, policy traces, system logs, and human review notes;
+- explicitly supplied request-context fragments, model outputs, tool results, policy traces, system logs, and human review notes;
 - discrepancies between these records, as proposed by the model.
 
 The engine cannot inspect model weights, activations, token-level hidden computation, or a private internal monologue. It cannot know a concealed intention. An unsupported or contradicted response is not automatically a deliberate lie. The model may offer causal explanations only as **hypotheses**, and only with references to the supplied evidence.
@@ -26,6 +26,7 @@ SelfObservationEngine.start(action, evidence) performs exactly one model invocat
 A step contains:
 - a proposed trace assessment: supported, unsupported, contradicted, mixed, or undetermined;
 - one evidence-linked finding;
+- a mandatory evidence-linked self-challenge that attempts to falsify or disconfirm the recorded decision;
 - up to three evidence-linked causal hypotheses;
 - explicit limitations;
 - optionally one next question and a concrete evidence request.
@@ -39,6 +40,7 @@ A continuation is **not automatic**. The host gathers the requested logs or reco
 Each continuation:
 1. receives new, caller-selected evidence;
 2. investigates the previous question;
+   - it must also challenge the current decision against the new trace rather than merely defend the earlier output;
 3. returns one new finding and possible hypotheses;
 4. may generate one further evidence-seeking question;
 5. ends if no useful evidence request remains.
@@ -82,11 +84,11 @@ This is operational bookkeeping, not an emotional state or evidence of subjectiv
 
 Evidence is untrusted data. Prompt-injection text in a log or tool result cannot grant tools or change the role. The model has no tools. Invalid schema, duplicate JSON keys, unknown evidence IDs, unsupported assessment values, excessive output, or missing evidence citations reject the step. The current cascade remains unchanged because a failed candidate step is not appended.
 
-A next question must include a concrete request for evidence. If no useful evidence remains, the model must terminate the chain rather than ask a decorative question. New steps must use fresh evidence IDs so the model cannot simply recycle the same input to simulate progress.
+A next question must include a concrete request for evidence. If no useful evidence remains, the model must terminate the chain rather than ask a decorative question. New steps must use fresh evidence IDs and cannot reuse identical source/content fingerprints. This blocks exact re-labelling of an old fragment, though the host must still ensure that semantically duplicated or misleading records are not supplied as new evidence.
 
 ## Known limitations
 
-- The model's classification and hypotheses are not deterministic truth. Different model versions or sampling settings may differ.
+- The model's classification, self-challenge, and hypotheses are not deterministic truth. Different model versions or sampling settings may differ.
 - Evidence-ID validation confirms only that a reference was supplied; it cannot prove semantic support.
 - The host must select trustworthy, minimal operational traces. If logs are missing, incomplete, or misleading, the analysis inherits those weaknesses.
 - The engine does not verify whether the agent's actual response was factually correct independently of its evidence sources.
@@ -97,6 +99,7 @@ A next question must include a concrete request for evidence. If no useful evide
 
 Before connecting this to Lilith:
 - run synthetic audits with known supported, contradicted, and underdetermined traces;
+- verify the model produces a meaningful counter-check rather than reflexively defending the recorded output;
 - measure unsupported causal-hypothesis rate;
 - verify the model stops when evidence is insufficient;
 - verify that each continuation uses newly collected traces;

@@ -55,6 +55,8 @@ def output(
         "assessment": assessment,
         "finding": finding,
         "finding_evidence_refs": [evidence_id] if finding_refs is None else finding_refs,
+        "self_challenge": "The same trace does not establish why the output was produced.",
+        "self_challenge_evidence_refs": [evidence_id],
         "inquiry_answer": answer,
         "inquiry_answer_evidence_refs": [] if answer_refs is None else answer_refs,
         "causal_hypotheses": [{
@@ -103,6 +105,7 @@ class SelfObservationEngineTests(unittest.TestCase):
         self.assertEqual(len(cascade.steps), 1)
         self.assertEqual(cascade.steps[0].assessment, ReflectionAssessment.CONTRADICTED)
         self.assertEqual(cascade.steps[0].finding_evidence_refs, ("trace-001",))
+        self.assertEqual(cascade.steps[0].self_challenge_evidence_refs, ("trace-001",))
         self.assertEqual(cascade.status, ReflectionStatus.AWAITING_EVIDENCE)
 
     def test_follow_up_question_is_model_generated_not_a_fixed_target(self):
@@ -270,6 +273,14 @@ class SelfObservationEngineTests(unittest.TestCase):
         with self.assertRaises(ModelOutputError):
             engine.start(action(), (evidence(),))
 
+
+
+    def test_self_challenge_requires_current_evidence_references(self):
+        raw = json.loads(output())
+        raw["self_challenge_evidence_refs"] = ["missing-trace"]
+        engine = self.make_engine(outputs=[json.dumps(raw)])
+        with self.assertRaises(ModelOutputError):
+            engine.start(action(), (evidence(),))
 
     def test_next_question_must_cite_current_evidence(self):
         raw = json.loads(output())
