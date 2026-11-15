@@ -11,6 +11,7 @@ Emotion-related records can reveal sensitive personal information. Privacy and u
 - A model's interpretation is not consent.
 - Consent must be specific enough for the user to understand what will be stored and why.
 - If consent is missing, ambiguous, or unavailable, the record remains ephemeral.
+- The current SQLite prototype checks that user-event records carry `ConsentStatus.GRANTED`; the application layer must still obtain and verify the user's actual approval.
 
 ## 2. Data minimisation
 
@@ -22,9 +23,9 @@ Emotion-related records can reveal sensitive personal information. Privacy and u
 
 ## 3. User control
 
-A future release must allow users to inspect, correct, export, and delete their memories. It must clearly distinguish what the user said from what the model inferred.
+The current prototype provides programmatic inspection, correction, and deletion methods for user event records. A future release must expose these controls in an understandable user interface and support export.
 
-Deleting a memory must also remove or invalidate derived summaries and indexes. A system must not claim deletion is complete until its defined deletion process has been verified.
+Deleting a memory must also remove or invalidate derived summaries and indexes once those are introduced. A system must not claim deletion is complete until its defined deletion process has been verified.
 
 ## 4. No clinical or manipulative use
 
@@ -42,7 +43,9 @@ Any persistent policy or configuration change requires a separately authorised p
 
 ## 6. Local-first security
 
-The initial design targets local processing and local storage. Before real personal data is stored, implementation must specify encryption at rest and key handling, filesystem permissions, backup and restore behaviour, log redaction, retention and deletion semantics, which components may read each record, and whether any provider receives user data.
+The initial design targets local processing and local storage. The current SQLite prototype is **not encrypted** and does not manage keys, access-control policy, backups, or secure deletion. Use synthetic fixtures only; do not put real emotional or personal data into this prototype.
+
+Before real personal data is stored, implementation must specify encryption at rest and key handling, filesystem permissions, backup and restore behaviour, log redaction, retention and deletion semantics, which components may read each record, and whether any provider receives user data.
 
 No external transmission should occur by default.
 

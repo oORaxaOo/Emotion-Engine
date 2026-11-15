@@ -5,22 +5,23 @@
 ## Research objective
 
 Build a system that can:
-
 - represent affective appraisals without claiming numeric variables are human feelings;
 - analyse events through context and appraisal rather than relying only on emotion labels;
 - preserve user-confirmed emotional memories with clear provenance and user control;
-- observe Lilith's recorded actions, internal processing, and outcomes;
-- study whether interactions between these components produce novel, persistent, and reproducible behaviour.
+- observe Lilith's recorded actions, computational state changes, and outcomes;
+- study whether interactions between components produce novel, persistent, and reproducible behaviour.
 
 ## Important distinction
 
-The project can implement affective computation, self-monitoring, memory, and complex adaptive behaviour. None of those capabilities, alone or together, demonstrates subjective experience, sentience, or life. The project must report what it measures and must not claim more.
+The project can implement affective computation, self-monitoring, memory, and complex adaptive behaviour. None of those capabilities, alone or together, demonstrates subjective experience, sentience, or life. The project reports what it measures and does not claim more.
 
 ## Status
 
-**Stage:** foundational architecture and research specification.
+**Current stage:** Phase 1 — data foundation prototype, under review in [PR #2](https://github.com/oORaxaOo/Emotion-Engine/pull/2).
 
-There is no runtime implementation or Hermes integration yet. The first development work is to define concepts, data boundaries, safety rules, and evaluation methods before adding executable behaviour.
+The initial standalone Python data layer includes validated records, consent-gated user-event persistence, separate agent-action and state-transition records, and in-memory SQLite tests. There is not yet an emotion-analysis engine, an internal-state transition policy, or a Hermes integration.
+
+**Privacy warning:** the current SQLite prototype does not encrypt its database. Use synthetic test data only. Do not store real personal or emotional memories until encryption, key handling, access controls, backups, and deletion behaviour have been designed and verified.
 
 ## Architecture at a glance
 
@@ -50,10 +51,20 @@ There is no runtime implementation or Hermes integration yet. The first developm
 - [Research and evaluation plan](docs/RESEARCH_PLAN.md)
 - [Hermes integration plan](docs/HERMES_INTEGRATION.md)
 
+## Local test command
+
+From the repository root:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+The test suite uses only Python's standard library and an in-memory SQLite database.
+
 ## Initial development sequence
 
-- **Phase 0 — Specification:** define concepts, boundaries, data ownership, and evaluation.
-- **Phase 1 — Data foundation:** typed records, validation, local persistence, and deletion tests.
+- **Phase 0 — Specification:** completed as the initial architecture and research documentation.
+- **Phase 1 — Data foundation:** initial prototype implemented; requires review and CI verification.
 - **Phase 2 — Appraisal prototype:** structured event analysis with uncertainty and alternatives.
 - **Phase 3 — Memory:** explicit consent, retrieval, correction, and retention controls.
 - **Phase 4 — Internal state and self-observation:** bounded state transitions and auditable reflection.
