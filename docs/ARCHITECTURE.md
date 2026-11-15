@@ -1,6 +1,6 @@
 # Architecture
 
-**Status:** Phase 1 data foundation implemented as an initial prototype; appraisal, state policy, self-observation, and Hermes integration remain proposed.
+**Status:** Phase 1 data foundation merged; Phase 2 adds a deterministic concept catalogue and structured appraisal completeness assessment. Free-text interpretation, internal-state policies, self-observation, and Hermes integration remain future work.
 
 ## 1. System boundary
 
@@ -17,11 +17,11 @@ These tracks must not be merged into one undifferentiated emotion record. A user
 
 ### 2.1 Psychological Knowledge Base
 
-A versioned catalogue of concepts, definitions, relationships, competing theories, source references, and known limitations. Concepts must be traceable to sources. The catalogue must not present a single theory of emotion as universally settled. This component is not implemented.
+A versioned catalogue of concepts, definitions, scope, limitations, and research references. The initial catalogue is implemented in `emotion_engine.knowledge`. It records multiple theoretical perspectives separately and does not present one theory as universally settled.
 
 ### 2.2 Emotional Event Analyzer
 
-Takes a bounded event description and relevant, permission-scoped context. It will return structured hypotheses about what happened, possible personal meaning, relevant appraisal dimensions, alternative emotion labels, and unknowns. It must distinguish direct user reports from model inferences and must not infer diagnoses. This component is not implemented.
+The Phase 2 prototype accepts structured appraisal values and reports which dimensions are supplied, which remain unknown, and which combinations merit review. It does not interpret free text, assign emotion labels, diagnose, or persist records. See [Phase 2 appraisal prototype](PHASE_2_APPRAISAL.md).
 
 ### 2.3 Emotional Memory
 
@@ -43,7 +43,7 @@ Self-Observation must not rewrite source code, expand permissions, change safety
 
 Will run controlled and repeatable experiments. It records component versions, configuration, test inputs, state transitions, outputs, and evaluation results. It supports baseline comparisons and ablation studies. This component is not implemented.
 
-## 3. Implemented Phase 1 data layer
+## 3. Implemented foundations
 
 The initial Python package is `emotion_engine` and uses only the standard library:
 
@@ -54,7 +54,9 @@ The initial Python package is `emotion_engine` and uses only the standard librar
 - a hard persistence check requiring `ConsentStatus.GRANTED` for user event records;
 - inspection, correction, listing, and deletion methods for user event records;
 - foreign-key validation linking state transitions to recorded agent actions;
-- in-memory unit tests using synthetic data.
+- a versioned psychological concept catalogue;
+- deterministic appraisal completeness reporting and review flags;
+- unit tests using synthetic data and in-memory SQLite.
 
 The SQLite store is a prototype and is not encrypted. Do not use it for real sensitive memories yet.
 
@@ -72,7 +74,7 @@ The intended future flow is:
 8. Optionally run one bounded self-observation pass after a completed task.
 9. Make a small, permission-scoped summary available to Lilith when relevant.
 
-Only the typed-record and local-persistence foundations in this flow currently exist.
+Only the typed-record, local-persistence, concept-catalogue, and structured appraisal-completeness foundations currently exist.
 
 ## 5. Authority and trust boundaries
 
