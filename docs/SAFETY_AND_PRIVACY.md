@@ -37,7 +37,7 @@ The purpose is context-aware assistance, not influence or control.
 
 ## 5. Agent self-observation boundaries
 
-Self-Observation may review documented actions, outcomes, and state transitions. It may propose improvements, but it cannot change its own source code, grant itself permissions or tool access, bypass approval or safety controls, change core objectives or privacy policy, create an unlimited recursive reflection loop, or present generated statements about its own feelings as evidence.
+Self-Observation may review documented actions, outcomes, and state transitions. The Phase 6 prototype accepts only caller-selected operational evidence and returns an evidence-linked finding, a mandatory evidence-linked self-challenge, tentative causal hypotheses, limitations, and at most one follow-up question. A continuation requires new evidence and an explicit host call; one cascade is limited to four steps. It cannot change its own source code, grant itself permissions or tool access, bypass approval or safety controls, change core objectives or privacy policy, create an unlimited recursive reflection loop, or present generated statements about its own feelings as evidence. Model statements about hidden motives are never facts.
 
 Any persistent policy or configuration change requires a separately authorised process and a reviewable diff.
 

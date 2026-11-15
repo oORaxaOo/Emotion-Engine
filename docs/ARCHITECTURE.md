@@ -1,6 +1,6 @@
 # Architecture
 
-**Status:** Phase 1 data foundation, Phase 2 appraisal prototype, and Phase 3 interpretation contract are merged. Phase 4 adds a one-shot provider-neutral model adapter. No concrete provider connection, autonomous state update, or Hermes integration is active.
+**Status:** Phases 1–5 are merged. Phase 6 adds a bounded, provider-neutral self-observation cascade. No concrete provider connection or Hermes integration is active.
 
 ## 1. System boundary
 
@@ -35,17 +35,17 @@ The generic adapter cannot forcibly cancel an arbitrary blocking provider functi
 
 ### 2.5 Emotional Memory
 
-Stores only records that meet consent and retention rules. The existing SQLite prototype is local but not encrypted. It must not hold real sensitive memories until encryption, key handling, access controls, backups, retention, export, and deletion guarantees are designed and tested.
+Stores only records that meet consent and retention rules. Phase 5 encrypts user-event payloads with AES-256-GCM, but does not encrypt the entire database or manage host key custody, access controls, or backups. See the Phase 5 privacy boundary before deployment.
 
-### 2.6 Internal State Model
+### 2.6 Internal State and Reflection-Cascade State
 
-Represents explicit computational variables used by the software. Typed state-transition records can be persisted, but no state variables, transition policies, or autonomous updates are currently active.
+The Phase 6 prototype keeps an explicit in-memory cascade state: current step, remaining step budget, pending evidence question, and terminal status. These are ordinary control variables. They are not affective states or subjective feelings. The cascade does not write its generated hypotheses to emotional memory.
 
-Optional affect-like coordinates such as valence and arousal are computational annotations, not subjective feelings.
+### 2.7 Self-Observation
 
-### 2.7 Self-Observation and Emergence Research
+The self-observation module reviews one recorded agent action against caller-selected, source-labelled operational evidence. Its strict output contract separates a trace assessment, evidence-linked finding, mandatory self-challenge, explicitly tentative causal hypotheses, limitations, and at most one generated follow-up question. Every continuation requires new external evidence and one explicit host call. The maximum is four model invocations per cascade.
 
-Future components will compare structured action records and outcomes and run controlled, repeatable experiments. They must not treat generated self-narratives as evidence of subjective experience or grant new permissions.
+The model is instructed to actively try to falsify its recorded decision before proposing causes. It can evaluate only what the host supplies. A mismatch may show that an answer was unsupported or contradicted; it does not establish deliberate deception or a hidden motive. The module cannot inspect model weights, activations, or private reasoning. Its parser checks structure and evidence-ID membership, not whether the cited text semantically proves the claim.
 
 ## 3. Processing flow
 
@@ -53,12 +53,13 @@ Future components will compare structured action records and outcomes and run co
 2. Supply only permission-scoped context to an approved text-only model transport.
 3. Receive one structured interpretation proposal.
 4. Validate the schema, numeric ranges, and evidence references deterministically.
-5. Keep the proposal ephemeral while it is reviewed.
-6. Ask for clarification or user confirmation when appropriate.
-7. Only a separate consent-controlled memory workflow may persist an approved user event.
-8. Any future internal state update must use explicit deterministic transition rules and its own audit record.
+5. Keep model proposals ephemeral while they are reviewed.
+6. For self-observation, provide a bounded action record and selected operational evidence to the self-observation contract.
+7. If a concrete follow-up question is produced, the host may collect new evidence and explicitly advance one step; otherwise the cascade ends.
+8. Only a separate consent-controlled memory workflow may persist an approved user event.
+9. Any persistent operational-state update must use explicit deterministic transition rules and its own audit record.
 
-Only the typed data layer, local prototype persistence, concept catalogue, structured appraisal checks, interpretation parser, and injected model adapter currently exist. No model endpoint or Hermes callback is configured.
+The standalone data layer, encrypted user-event payload store, concept catalogue, appraisal checks, interpretation parser, injected model adapter, and bounded self-observation prototype exist. No concrete model endpoint or Hermes callback is configured.
 
 ## 4. Authority and trust boundaries
 
@@ -69,12 +70,12 @@ Only the typed data layer, local prototype persistence, concept catalogue, struc
 | Model adapter | Send a bounded evidence envelope to an injected text-only transport | Add history, retry automatically, or write memory |
 | Memory store | Persist approved records | Store unapproved emotional data |
 | State engine | Apply defined and tested transitions | Create unlimited self-directed goals |
-| Self-Observation | Compare action records with outcomes | Treat its own narrative as evidence |
+| Self-Observation | Propose evidence-linked audit findings, hypotheses, and one next question | Treat model-generated hypotheses or previous questions as facts |
 | Hermes | Orchestrate messages and tools | Be replaced by an unbounded inner loop |
 
 ## 5. Bounded feedback
 
-Future feedback must be finite and auditable. The first self-observation implementation should allow at most one reflection pass per completed task. Reflection must not recursively trigger another reflection. Budgets and maximum depth must be enforced in code.
+Each reflection step is one model call, never an automatic recursive call. One cascade is limited to four steps. A continuation requires new evidence identifiers and an explicit host call; prior model claims are not carried forward as factual evidence. No background scheduler, tool call, memory write, or permission change is performed by the reflection engine.
 
 ## 6. Failure behaviour
 

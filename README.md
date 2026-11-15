@@ -73,7 +73,7 @@ python -m pip install -r requirements.txt
 python -m unittest discover -s tests -v
 ```
 
-The tests use only Python's standard library and in-memory SQLite.
+Tests use unittest and in-memory SQLite; encrypted storage uses the cryptography dependency.
 
 ## Development sequence
 
