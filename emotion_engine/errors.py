@@ -15,3 +15,11 @@ class ConsentRequiredError(EmotionEngineError, PermissionError):
 
 class RecordNotFoundError(EmotionEngineError, LookupError):
     """Raised when an update targets a record that does not exist."""
+
+
+class ModelInvocationError(EmotionEngineError):
+    """Raised when the injected model transport fails."""
+
+
+class ModelOutputError(EmotionEngineError):
+    """Raised when model output is empty, oversized, or fails validation."""
