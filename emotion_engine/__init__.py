@@ -4,6 +4,8 @@ from .appraisal import AppraisalAssessment, AppraisalInput, assess_appraisal
 from .errors import (
     ConsentRequiredError,
     EmotionEngineError,
+    EncryptionError,
+    EncryptionKeyRequiredError,
     ModelInvocationError,
     ModelOutputError,
     RecordNotFoundError,
@@ -25,6 +27,7 @@ from .model_adapter import (
     InterpretationRun,
     TextGenerator,
 )
+from .memory import MemoryLifecycle, RetentionPolicy
 from .models import (
     ActionOutcome,
     AffectCoordinates,
@@ -37,7 +40,7 @@ from .models import (
     StateTransitionRecord,
     UserEventRecord,
 )
-from .store import SQLiteEmotionStore
+from .store import SQLiteEmotionStore, generate_encryption_key
 
 __all__ = [
     "ActionOutcome",
@@ -54,6 +57,8 @@ __all__ = [
     "ConsentRequiredError",
     "ConsentStatus",
     "EmotionEngineError",
+    "EncryptionError",
+    "EncryptionKeyRequiredError",
     "EmotionHypothesis",
     "EmotionLabel",
     "EvidenceFragment",
@@ -62,15 +67,18 @@ __all__ = [
     "InterpretationProposal",
     "InterpretationRun",
     "ModelInvocationError",
+    "MemoryLifecycle",
     "ModelOutputError",
     "RecordNotFoundError",
     "RecordValidationError",
+    "RetentionPolicy",
     "SQLiteEmotionStore",
     "StateTransitionRecord",
     "TextGenerator",
     "TextHypothesis",
     "UserEventRecord",
     "assess_appraisal",
+    "generate_encryption_key",
     "get_concept",
     "list_concepts",
     "parse_interpretation",
