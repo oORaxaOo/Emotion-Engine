@@ -1,6 +1,6 @@
 # Architecture
 
-**Status:** Phases 1–5 are merged. Phase 6 adds a bounded, provider-neutral self-observation cascade. No concrete provider connection or Hermes integration is active.
+**Status:** Phases 1–6 are merged. A native Hermes plugin adapter is in development; it uses the documented Hermes plugin API and remains opt-in.
 
 ## 1. System boundary
 
@@ -59,7 +59,7 @@ The model is instructed to actively try to falsify its recorded decision before 
 8. Only a separate consent-controlled memory workflow may persist an approved user event.
 9. Any persistent operational-state update must use explicit deterministic transition rules and its own audit record.
 
-The standalone data layer, encrypted user-event payload store, concept catalogue, appraisal checks, interpretation parser, injected model adapter, and bounded self-observation prototype exist. No concrete model endpoint or Hermes callback is configured.
+The standalone data layer, encrypted user-event payload store, concept catalogue, appraisal checks, interpretation parser, injected model adapter, and bounded self-observation engine exist. The Phase 8 adapter connects self-observation to Hermes through its public plugin API; no active Hermes profile is changed by this repository.
 
 ## 4. Authority and trust boundaries
 
