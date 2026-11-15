@@ -345,7 +345,7 @@ def parse_interpretation_json(
         payload = json.loads(raw_json, object_pairs_hook=no_duplicate_keys)
     except RecordValidationError:
         raise
-    except (json.JSONDecodeError, TypeError) as exc:
+    except (json.JSONDecodeError, TypeError, RecursionError) as exc:
         raise RecordValidationError("raw_json is not valid JSON") from exc
 
     return parse_interpretation(

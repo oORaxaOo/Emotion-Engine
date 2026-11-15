@@ -129,6 +129,13 @@ class InterpretationContractTests(unittest.TestCase):
                 allowed_evidence_ids=("message-1",),
             )
 
+    def test_json_parser_rejects_oversized_payload(self):
+        with self.assertRaises(RecordValidationError):
+            parse_interpretation_json(
+                " " * 30001, source_event_id="event-42",
+                allowed_evidence_ids=("message-1",),
+            )
+
     def test_parser_requires_evidence_envelope(self):
         with self.assertRaises(RecordValidationError):
             parse_interpretation(
