@@ -7,6 +7,14 @@ from .errors import (
     RecordNotFoundError,
     RecordValidationError,
 )
+from .interpretation import (
+    AppraisalNote,
+    EmotionHypothesis,
+    InterpretationProposal,
+    TextHypothesis,
+    parse_interpretation,
+    parse_interpretation_json,
+)
 from .knowledge import CATALOGUE_VERSION, Concept, get_concept, list_concepts
 from .models import (
     ActionOutcome,
@@ -29,20 +37,26 @@ __all__ = [
     "Appraisal",
     "AppraisalAssessment",
     "AppraisalInput",
+    "AppraisalNote",
     "CATALOGUE_VERSION",
     "ClaimStatus",
     "Concept",
     "ConsentRequiredError",
     "ConsentStatus",
     "EmotionEngineError",
+    "EmotionHypothesis",
     "EmotionLabel",
     "EvidenceOrigin",
+    "InterpretationProposal",
     "RecordNotFoundError",
     "RecordValidationError",
     "SQLiteEmotionStore",
     "StateTransitionRecord",
+    "TextHypothesis",
     "UserEventRecord",
     "assess_appraisal",
     "get_concept",
     "list_concepts",
+    "parse_interpretation",
+    "parse_interpretation_json",
 ]
