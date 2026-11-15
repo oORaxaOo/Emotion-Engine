@@ -25,7 +25,7 @@ Affective computation, self-monitoring, memory, and complex adaptive behaviour d
 
 **Phase 4 — Bounded model adapter:** merged in PR #5. A one-shot provider-neutral adapter accepts a small caller-selected evidence envelope, requests strict JSON, validates the response, and returns an ephemeral proposal. It performs no database writes and does not change internal state.
 
-**Phase 5 — Memory lifecycle and privacy:** merged in PR #6. User-event payload encryption, a required application consent verifier, versioned export, explicit retention, and review/forget operations are implemented. Host-level access control, key custody, and backup protection remain external requirements.
+**Phase 5 — Memory lifecycle and privacy:** implementation submitted for review. User-event payload encryption, a required application consent verifier, versioned export, explicit retention, and review/forget operations are included. This does not yet authorize real-data deployment.
 
 **Privacy warning:** Phase 5 encrypts user-event payloads, but it does not encrypt the entire SQLite database. Record IDs and timestamps, technical action/state tables, local backups, and exported JSON remain outside that payload-encryption boundary. The host application must securely store the 32-byte key, implement real user consent UI and access control, and manage backups/logs. Do not use real personal or emotional data until those deployment controls have been implemented and reviewed.
 
@@ -57,8 +57,6 @@ Affective computation, self-monitoring, memory, and complex adaptive behaviour d
 - [Phase 2 appraisal prototype](docs/PHASE_2_APPRAISAL.md)
 - [Phase 3 interpretation contract](docs/PHASE_3_INTERPRETATION_CONTRACT.md)
 - [Phase 4 bounded model adapter](docs/PHASE_4_BOUNDED_MODEL_ADAPTER.md)
-- [Phase 5 memory lifecycle](docs/PHASE_5_MEMORY_LIFECYCLE.md)
-- [Phase 6 bounded self-observation](docs/PHASE_6_SELF_OBSERVATION.md)
 - [Data model](docs/DATA_MODEL.md)
 - [Safety and privacy](docs/SAFETY_AND_PRIVACY.md)
 - [Research and evaluation plan](docs/RESEARCH_PLAN.md)
@@ -75,7 +73,7 @@ python -m pip install -r requirements.txt
 python -m unittest discover -s tests -v
 ```
 
-The tests use only Python's standard library and in-memory SQLite.
+Tests use unittest and in-memory SQLite; encrypted storage uses the cryptography dependency.
 
 ## Development sequence
 
@@ -85,7 +83,7 @@ The tests use only Python's standard library and in-memory SQLite.
 - **Phase 3 — Interpretation contract:** merged; strict validation of bounded model proposals.
 - **Phase 4 — Bounded model adapter:** merged; one-shot injected text transport with output validation.
 - **Phase 5 — Memory lifecycle and privacy:** in development; encrypted user-event payloads, consent verification hook, export, explicit retention, and deletion controls. Host access control and backup policy remain external requirements.
-- **Phase 6 — Bounded self-observation:** implementation in review. Each reflection step examines one recorded action against caller-selected operational evidence, labels causes as hypotheses, and may generate one evidence-seeking follow-up question. A cascade advances only after the host supplies new evidence and is limited to four explicit steps.
+- **Phase 6 — Internal state and self-observation:** bounded state transitions and auditable reflection.
 - **Phase 7 — Research harness:** repeatable experiments, baselines, and ablation tests.
 - **Phase 8 — Hermes adapter:** integrate only after standalone behaviour is tested.
 

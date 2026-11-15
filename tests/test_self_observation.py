@@ -160,6 +160,17 @@ class SelfObservationEngineTests(unittest.TestCase):
         self.assertEqual(continued.status, ReflectionStatus.COMPLETED)
         self.assertIn("Which decision input", self.generator.calls[1]["prompt"])
 
+    def test_relabeling_identical_evidence_content_is_rejected(self):
+        engine = self.make_engine()
+        cascade = engine.start(action(), (evidence(),))
+
+        with self.assertRaises(RecordValidationError):
+            engine.continue_cascade(
+                cascade,
+                (evidence("renamed-trace-002"),),
+            )
+        self.assertEqual(len(self.generator.calls), 1)
+
     def test_reusing_previous_evidence_is_rejected(self):
         engine = self.make_engine()
         cascade = engine.start(action(), (evidence(),))

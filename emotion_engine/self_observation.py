@@ -7,6 +7,7 @@ All model-generated causal explanations remain hypotheses.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass
 from enum import Enum
@@ -148,6 +149,7 @@ class ReflectionStep:
     next_question_evidence_refs: tuple[str, ...]
     evidence_to_collect: tuple[str, ...]
     used_evidence_ids: tuple[str, ...]
+    evidence_fingerprints: tuple[str, ...]
     prompt_characters: int
     output_characters: int
     invocation_count: int = 1
@@ -213,6 +215,20 @@ class ReflectionStep:
             maximum_chars=MAX_REFLECTION_EVIDENCE_ID_CHARS,
         )
         allowed = set(evidence_ids)
+        fingerprints = _string_tuple(
+            "evidence_fingerprints",
+            self.evidence_fingerprints,
+            minimum=1,
+            maximum_items=MAX_REFLECTION_EVIDENCE_ITEMS,
+            maximum_chars=64,
+        )
+        if any(
+            len(value) != 64 or any(char not in "0123456789abcdef" for char in value)
+            for value in fingerprints
+        ):
+            raise RecordValidationError("evidence_fingerprints must be lowercase SHA-256 hex digests")
+        if len(fingerprints) != len(evidence_ids):
+            raise RecordValidationError("each evidence item must have one fingerprint")
         all_refs = list(finding_refs) + list(answer_refs)
         for hypothesis in hypotheses:
             all_refs.extend(hypothesis.evidence_refs)
@@ -273,6 +289,7 @@ class ReflectionStep:
         object.__setattr__(self, "limitations", limitations)
         object.__setattr__(self, "next_question_evidence_refs", question_refs)
         object.__setattr__(self, "used_evidence_ids", evidence_ids)
+        object.__setattr__(self, "evidence_fingerprints", fingerprints)
 
 
 @dataclass(frozen=True, slots=True)
@@ -306,13 +323,20 @@ class ReflectionCascade:
         ):
             raise RecordValidationError("cascade steps must be sequential ReflectionStep records")
         seen: set[str] = set()
+        seen_fingerprints: set[str] = set()
         for step in steps:
             current = set(step.used_evidence_ids)
+            fingerprints = set(step.evidence_fingerprints)
             if seen.intersection(current):
                 raise RecordValidationError(
                     "each cascade step must use newly supplied evidence identifiers"
                 )
+            if seen_fingerprints.intersection(fingerprints):
+                raise RecordValidationError(
+                    "each cascade step must use new evidence content, not relabel earlier evidence"
+                )
             seen.update(current)
+            seen_fingerprints.update(fingerprints)
         object.__setattr__(self, "steps", steps)
 
     @property
@@ -380,6 +404,7 @@ def _parse_step(
     step_number: int,
     allowed_evidence_ids: tuple[str, ...],
     prompt_characters: int,
+    evidence_fingerprints: tuple[str, ...],
     inquiry_required: bool,
 ) -> ReflectionStep:
     if len(raw) > MAX_REFLECTION_OUTPUT_CHARS:
@@ -513,6 +538,7 @@ def _parse_step(
             next_question_evidence_refs=next_question_evidence_refs,
             evidence_to_collect=evidence_to_collect,
             used_evidence_ids=allowed_evidence_ids,
+            evidence_fingerprints=evidence_fingerprints,
             prompt_characters=prompt_characters,
             output_characters=len(raw),
         )
@@ -650,7 +676,7 @@ class SelfObservationEngine:
             "the concrete trace that should be collected.\n\n"
             "Epistemic rules:\n"
             "- A contradiction, unsupported answer, or error is not proof of deliberate lying.\n"
-            "- Never state a hidden motive, intention, or private reasoning process as fact.\n"
+            "- Do not infer intent. Never state a hidden motive, intention, or private reasoning process as fact.\n"
             "- You cannot inspect model weights, activations, or hidden computation. "
             "Do not pretend that you can.\n"
             "- Distinguish observed facts from causal hypotheses and unknowns.\n"
@@ -718,6 +744,12 @@ class SelfObservationEngine:
                 raw,
                 step_number=step_number,
                 allowed_evidence_ids=tuple(item.evidence_id for item in evidence),
+                evidence_fingerprints=tuple(
+                    hashlib.sha256(
+                        (item.source.value + "\0" + item.content).encode("utf-8")
+                    ).hexdigest()
+                    for item in evidence
+                ),
                 prompt_characters=len(prompt),
                 inquiry_required=previous_question is not None,
             )
@@ -774,6 +806,21 @@ class SelfObservationEngine:
         if any(item.evidence_id in previously_used for item in items):
             raise RecordValidationError(
                 "continuation requires new evidence identifiers not used in earlier steps"
+            )
+        previous_fingerprints = {
+            fingerprint
+            for step in cascade.steps
+            for fingerprint in step.evidence_fingerprints
+        }
+        current_fingerprints = {
+            hashlib.sha256(
+                (item.source.value + "\0" + item.content).encode("utf-8")
+            ).hexdigest()
+            for item in items
+        }
+        if previous_fingerprints.intersection(current_fingerprints):
+            raise RecordValidationError(
+                "continuation requires new evidence content, not renamed copies of earlier evidence"
             )
 
         step = self._run_step(
