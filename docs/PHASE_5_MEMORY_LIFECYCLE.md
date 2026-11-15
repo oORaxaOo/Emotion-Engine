@@ -1,6 +1,6 @@
 # Phase 5 — Memory Lifecycle and Privacy
 
-**Status:** implementation in review. This is a standalone library capability, not a deployment approval for real personal data.
+**Status:** merged in PR #6. This is a standalone library capability, not a deployment approval for real personal data.
 
 ## Scope
 

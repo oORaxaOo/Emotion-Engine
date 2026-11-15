@@ -1,0 +1,19 @@
+name: emotion-engine
+version: "0.1.0"
+manifest_version: 2
+description: Bounded, evidence-grounded self-observation for Hermes Agent.
+license: MIT
+homepage: https://github.com/oORaxaOo/Emotion-Engine
+tags:
+  - research
+  - self-observation
+  - local-first
+provides_tools:
+  - emotion_list_recent_actions
+  - emotion_reflect
+  - emotion_continue_reflection
+  - emotion_clear_session
+provides_hooks:
+  - post_llm_call
+python_dependencies:
+  - "cryptography>=42.0.0,<47"

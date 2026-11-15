@@ -1,6 +1,6 @@
 # Phase 6 — Bounded Self-Observation and Question Cascades
 
-**Status:** prototype implementation in review. No live Hermes or Gemma endpoint is connected.
+**Status:** merged in PR #7. The core remains provider-neutral; the separate native Hermes plugin adapter is being implemented in Phase 8.
 
 ## Objective
 

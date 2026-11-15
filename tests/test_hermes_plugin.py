@@ -27,7 +27,7 @@ def reflection_output(*, next_question=None, answer=None, answer_refs=None, evid
 
 class FakeLLM:
     def __init__(self, outputs=None):
-        self.outputs = list(outputs or [reflection_output()])
+        self.outputs = list(outputs or [reflection_output(next_question="Which independent source verifies this response?")])
         self.calls = []
 
     def complete(self, **kwargs):
