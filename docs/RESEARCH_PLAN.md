@@ -24,7 +24,8 @@ Not being hard-coded as one explicit rule does not mean uncaused, alive, or cons
 
 - **H1 — Context-sensitive appraisal:** structured appraisal dimensions will distinguish events that share surface wording but differ in context.
 - **H2 — Memory-informed interpretation:** user-approved event memories will improve continuity on relevant future tasks without causing unrelated memories to leak into responses.
-- **H3 — Corrective self-observation:** structured comparison between an action and its observed outcome will help identify and reduce repeatable classes of system error.
+- **H3 — Corrective self-observation:** structured comparison between an action and its observed outcome will help identify repeatable error classes without treating model-generated motives as facts.
+- **H4 — Evidence-seeking question cascade:** a bounded sequence in which each generated question is investigated using newly collected evidence may uncover progressively deeper operational causes without recycling unsupported hypotheses.
 - **H4 — Component interaction:** combining appraisal, memory, state, and self-observation may create stable behaviours not present in isolated components.
 
 Each hypothesis must be testable and may be rejected.

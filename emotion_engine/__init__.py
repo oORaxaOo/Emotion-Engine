@@ -28,6 +28,17 @@ from .model_adapter import (
     TextGenerator,
 )
 from .memory import MemoryLifecycle, RetentionPolicy
+from .self_observation import (
+    MAX_REFLECTION_STEPS,
+    ReflectionAssessment,
+    ReflectionCascade,
+    ReflectionEvidence,
+    ReflectionEvidenceSource,
+    ReflectionHypothesis,
+    ReflectionStatus,
+    ReflectionStep,
+    SelfObservationEngine,
+)
 from .models import (
     ActionOutcome,
     AffectCoordinates,
@@ -68,11 +79,20 @@ __all__ = [
     "InterpretationRun",
     "ModelInvocationError",
     "MemoryLifecycle",
+    "MAX_REFLECTION_STEPS",
     "ModelOutputError",
     "RecordNotFoundError",
     "RecordValidationError",
+    "ReflectionAssessment",
+    "ReflectionCascade",
+    "ReflectionEvidence",
+    "ReflectionEvidenceSource",
+    "ReflectionHypothesis",
+    "ReflectionStatus",
+    "ReflectionStep",
     "RetentionPolicy",
     "SQLiteEmotionStore",
+    "SelfObservationEngine",
     "StateTransitionRecord",
     "TextGenerator",
     "TextHypothesis",
