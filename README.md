@@ -21,7 +21,9 @@ Affective computation, self-monitoring, memory, and complex adaptive behaviour d
 
 **Phase 2 — Appraisal prototype:** merged in PR #3. Versioned psychological concepts and deterministic assessment of explicitly supplied appraisal dimensions.
 
-**Phase 3 — Interpretation contract:** implemented in the current development branch. A strict, provider-neutral parser validates event summaries, appraisal notes, meaning hypotheses, emotion hypotheses, alternative explanations, unknowns, and clarifying questions. It verifies that cited evidence IDs belong to the supplied event envelope. It does not call a model or write to memory.
+**Phase 3 — Interpretation contract:** merged in PR #4. A strict, provider-neutral parser validates model proposals, explicit evidence references, appraisal notes, emotion hypotheses, alternatives, and unknowns.
+
+**Phase 4 — Bounded model adapter:** implemented in the current development branch. A one-shot provider-neutral adapter accepts a small caller-selected evidence envelope, requests strict JSON, validates the response, and returns an ephemeral proposal. It performs no database writes and does not change internal state.
 
 **Privacy warning:** the SQLite prototype does not encrypt its database. Use synthetic test data only. Do not store real personal or emotional memories until encryption, key handling, access controls, backups, retention, export, and deletion behaviour have been designed and verified.
 
@@ -30,10 +32,11 @@ Affective computation, self-monitoring, memory, and complex adaptive behaviour d
 1. **Psychological Knowledge Base** — versioned concepts and research references.
 2. **Emotional Event Analysis** — context and appraisal hypotheses.
 3. **Interpretation Contract** — validates bounded model proposals and evidence references.
-4. **Emotional Memory** — user-controlled, provenance-aware event memories.
-5. **Internal State Model** — explicit computational state, not a claim of feeling.
-6. **Self-Observation** — structured review of Lilith's own actions and outcomes.
-7. **Emergence Research** — controlled experiments and ablation tests.
+4. **Bounded Model Adapter** — makes one controlled call through an injected text-only transport.
+5. **Emotional Memory** — user-controlled, provenance-aware event memories.
+6. **Internal State Model** — explicit computational state, not a claim of feeling.
+7. **Self-Observation** — structured review of Lilith's own actions and outcomes.
+8. **Emergence Research** — controlled experiments and ablation tests.
 
 ## Design principles
 
@@ -51,6 +54,7 @@ Affective computation, self-monitoring, memory, and complex adaptive behaviour d
 - [Concepts and research foundations](docs/CONCEPTS.md)
 - [Phase 2 appraisal prototype](docs/PHASE_2_APPRAISAL.md)
 - [Phase 3 interpretation contract](docs/PHASE_3_INTERPRETATION_CONTRACT.md)
+- [Phase 4 bounded model adapter](docs/PHASE_4_BOUNDED_MODEL_ADAPTER.md)
 - [Data model](docs/DATA_MODEL.md)
 - [Safety and privacy](docs/SAFETY_AND_PRIVACY.md)
 - [Research and evaluation plan](docs/RESEARCH_PLAN.md)
@@ -71,8 +75,8 @@ The tests use only Python's standard library and in-memory SQLite.
 - **Phase 0 — Specification:** initial architecture and research documentation.
 - **Phase 1 — Data foundation:** merged; validated records and consent-gated persistence.
 - **Phase 2 — Appraisal prototype:** merged; concept catalogue and structured appraisal checks.
-- **Phase 3 — Interpretation contract:** current development branch; strict validation of bounded model proposals.
-- **Phase 4 — Bounded model adapter:** optional LLM invocation with strict context, output limits, and no direct database writes.
+- **Phase 3 — Interpretation contract:** merged; strict validation of bounded model proposals.
+- **Phase 4 — Bounded model adapter:** current development branch; one-shot injected text transport with output validation.
 - **Phase 5 — Memory lifecycle and encryption:** review/export, retention, key handling, and deletion guarantees before real personal data is used.
 - **Phase 6 — Internal state and self-observation:** bounded state transitions and auditable reflection.
 - **Phase 7 — Research harness:** repeatable experiments, baselines, and ablation tests.

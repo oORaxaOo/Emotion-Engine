@@ -4,6 +4,8 @@ from .appraisal import AppraisalAssessment, AppraisalInput, assess_appraisal
 from .errors import (
     ConsentRequiredError,
     EmotionEngineError,
+    ModelInvocationError,
+    ModelOutputError,
     RecordNotFoundError,
     RecordValidationError,
 )
@@ -16,6 +18,13 @@ from .interpretation import (
     parse_interpretation_json,
 )
 from .knowledge import CATALOGUE_VERSION, Concept, get_concept, list_concepts
+from .model_adapter import (
+    BoundedModelAdapter,
+    EventAnalysisInput,
+    EvidenceFragment,
+    InterpretationRun,
+    TextGenerator,
+)
 from .models import (
     ActionOutcome,
     AffectCoordinates,
@@ -38,6 +47,7 @@ __all__ = [
     "AppraisalAssessment",
     "AppraisalInput",
     "AppraisalNote",
+    "BoundedModelAdapter",
     "CATALOGUE_VERSION",
     "ClaimStatus",
     "Concept",
@@ -46,12 +56,18 @@ __all__ = [
     "EmotionEngineError",
     "EmotionHypothesis",
     "EmotionLabel",
+    "EvidenceFragment",
     "EvidenceOrigin",
+    "EventAnalysisInput",
     "InterpretationProposal",
+    "InterpretationRun",
+    "ModelInvocationError",
+    "ModelOutputError",
     "RecordNotFoundError",
     "RecordValidationError",
     "SQLiteEmotionStore",
     "StateTransitionRecord",
+    "TextGenerator",
     "TextHypothesis",
     "UserEventRecord",
     "assess_appraisal",
