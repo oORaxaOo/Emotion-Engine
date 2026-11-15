@@ -23,3 +23,11 @@ class ModelInvocationError(EmotionEngineError):
 
 class ModelOutputError(EmotionEngineError):
     """Raised when model output is empty, oversized, or fails validation."""
+
+
+class EncryptionKeyRequiredError(EmotionEngineError, PermissionError):
+    """Raised when encrypted user memories are accessed without their key."""
+
+
+class EncryptionError(EmotionEngineError):
+    """Raised when encrypted user memory is malformed or cannot be authenticated."""

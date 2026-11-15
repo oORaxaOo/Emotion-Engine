@@ -61,7 +61,7 @@ The model defines:
 - `granted` — the user explicitly approved storage;
 - `revoked` — the user withdrew permission.
 
-The SQLite store rejects user-event inserts and updates unless the record carries `granted`. The application layer must obtain that approval from the user; a model cannot grant consent on the user's behalf. This check is not a substitute for application-level identity and permission controls.
+The SQLite store requires both `ConsentStatus.GRANTED` and an injected application `consent_verifier` that returns the literal boolean `True` for each write/update. The record flag alone is insufficient. The verifier must consult trusted application state created by a real user approval flow; this library does not provide a consent UI, user authentication, or identity system. A model cannot grant consent.
 
 ## 6. Persistence API
 
@@ -73,6 +73,8 @@ The SQLite store rejects user-event inserts and updates unless the record carrie
 - `update_user_event(record)`
 - `delete_user_event(record_id)`
 - `delete_all_user_events()`
+- `delete_user_events_before(cutoff)` — explicit, timezone-aware recorded-at retention cutoff
+- `export_user_events()` — versioned JSON export of user records only, with a 10,000-record safety ceiling
 - `record_agent_action(record)`
 - `get_agent_action(action_id)`
 - `record_state_transition(record)`

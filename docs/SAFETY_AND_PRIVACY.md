@@ -11,7 +11,7 @@ Emotion-related records can reveal sensitive personal information. Privacy and u
 - A model's interpretation is not consent.
 - Consent must be specific enough for the user to understand what will be stored and why.
 - If consent is missing, ambiguous, or unavailable, the record remains ephemeral.
-- The current SQLite prototype checks that user-event records carry `ConsentStatus.GRANTED`; the application layer must still obtain and verify the user's actual approval.
+- The store requires a `ConsentStatus.GRANTED` record and an injected `consent_verifier` callback that returns literal `True`. The callback is an application boundary, not proof by itself: the host must implement an understandable approval flow and consult trusted, current consent state on every write/update. If the callback is missing, rejects, or raises, storage fails closed.
 
 ## 2. Data minimisation
 
@@ -23,7 +23,7 @@ Emotion-related records can reveal sensitive personal information. Privacy and u
 
 ## 3. User control
 
-The current prototype provides programmatic inspection, correction, and deletion methods for user event records. A future release must expose these controls in an understandable user interface and support export.
+The library provides programmatic review, correction, individual/all-memory deletion, explicit retention pruning, and versioned JSON export. The host application must expose these controls in an understandable interface. On consent withdrawal, the host must first mark its consent authority as revoked so subsequent writes are rejected, then delete affected memories and any future derived data. Exported JSON is plaintext and must be handled as sensitive data.
 
 Deleting a memory must also remove or invalidate derived summaries and indexes once those are introduced. A system must not claim deletion is complete until its defined deletion process has been verified.
 
@@ -43,7 +43,7 @@ Any persistent policy or configuration change requires a separately authorised p
 
 ## 6. Local-first security
 
-The initial design targets local processing and local storage. The current SQLite prototype is **not encrypted** and does not manage keys, access-control policy, backups, or secure deletion. Use synthetic fixtures only; do not put real emotional or personal data into this prototype.
+The initial design targets local processing and local storage. Phase 5 encrypts only user-event payloads with AES-256-GCM. It does not encrypt IDs/timestamps, technical action/state tables, SQLite journals, or backups, and does not manage key custody, host authentication, access-control policy, or secure deletion. The host must supply a 32-byte key from a secure OS-backed store. Version-1 plaintext event records are migrated only when a key is supplied; without it, opening the database fails closed. Use synthetic fixtures only until the host's full security model and backup/restore workflow are implemented and reviewed.
 
 Before real personal data is stored, implementation must specify encryption at rest and key handling, filesystem permissions, backup and restore behaviour, log redaction, retention and deletion semantics, which components may read each record, and whether any provider receives user data.
 

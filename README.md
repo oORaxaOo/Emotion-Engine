@@ -23,9 +23,11 @@ Affective computation, self-monitoring, memory, and complex adaptive behaviour d
 
 **Phase 3 — Interpretation contract:** merged in PR #4. A strict, provider-neutral parser validates model proposals, explicit evidence references, appraisal notes, emotion hypotheses, alternatives, and unknowns.
 
-**Phase 4 — Bounded model adapter:** implemented in the current development branch. A one-shot provider-neutral adapter accepts a small caller-selected evidence envelope, requests strict JSON, validates the response, and returns an ephemeral proposal. It performs no database writes and does not change internal state.
+**Phase 4 — Bounded model adapter:** merged in PR #5. A one-shot provider-neutral adapter accepts a small caller-selected evidence envelope, requests strict JSON, validates the response, and returns an ephemeral proposal. It performs no database writes and does not change internal state.
 
-**Privacy warning:** the SQLite prototype does not encrypt its database. Use synthetic test data only. Do not store real personal or emotional memories until encryption, key handling, access controls, backups, retention, export, and deletion behaviour have been designed and verified.
+**Phase 5 — Memory lifecycle and privacy:** implementation in review. User-event payload encryption, a required application consent verifier, versioned export, explicit retention, and review/forget operations are being added. This does not yet authorize real-data deployment.
+
+**Privacy warning:** Phase 5 encrypts user-event payloads, but it does not encrypt the entire SQLite database. Record IDs and timestamps, technical action/state tables, local backups, and exported JSON remain outside that payload-encryption boundary. The host application must securely store the 32-byte key, implement real user consent UI and access control, and manage backups/logs. Do not use real personal or emotional data until those deployment controls have been implemented and reviewed.
 
 ## Architecture
 
@@ -76,8 +78,8 @@ The tests use only Python's standard library and in-memory SQLite.
 - **Phase 1 — Data foundation:** merged; validated records and consent-gated persistence.
 - **Phase 2 — Appraisal prototype:** merged; concept catalogue and structured appraisal checks.
 - **Phase 3 — Interpretation contract:** merged; strict validation of bounded model proposals.
-- **Phase 4 — Bounded model adapter:** current development branch; one-shot injected text transport with output validation.
-- **Phase 5 — Memory lifecycle and encryption:** review/export, retention, key handling, and deletion guarantees before real personal data is used.
+- **Phase 4 — Bounded model adapter:** merged; one-shot injected text transport with output validation.
+- **Phase 5 — Memory lifecycle and privacy:** in development; encrypted user-event payloads, consent verification hook, export, explicit retention, and deletion controls. Host access control and backup policy remain external requirements.
 - **Phase 6 — Internal state and self-observation:** bounded state transitions and auditable reflection.
 - **Phase 7 — Research harness:** repeatable experiments, baselines, and ablation tests.
 - **Phase 8 — Hermes adapter:** integrate only after standalone behaviour is tested.

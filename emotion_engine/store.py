@@ -1,18 +1,30 @@
-"""Small, local SQLite persistence layer.
+"""Local SQLite persistence with encrypted user-event payloads.
 
-User event persistence is consent-gated. The database is not encrypted by this
-module; use synthetic data until an encryption/key-management design is added.
+Only user-event payloads are encrypted here. Record identifiers and timestamps,
+agent-action rows, and state-transition rows remain ordinary SQLite data.
+The caller must supply and securely manage the key and consent verifier.
 """
 
 from __future__ import annotations
 
 import json
+import secrets
 import sqlite3
-from datetime import datetime
+from base64 import urlsafe_b64decode, urlsafe_b64encode
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
-from .errors import ConsentRequiredError, RecordNotFoundError, RecordValidationError
+from cryptography.exceptions import InvalidTag
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+from .errors import (
+    ConsentRequiredError,
+    EncryptionError,
+    EncryptionKeyRequiredError,
+    RecordNotFoundError,
+    RecordValidationError,
+)
 from .models import (
     ActionOutcome,
     AffectCoordinates,
@@ -27,7 +39,11 @@ from .models import (
 )
 
 
-_SCHEMA_VERSION = 1
+_SCHEMA_VERSION = 2
+_ENCRYPTION_PREFIX = "enc:v1:"
+_NONCE_BYTES = 12
+_KEY_BYTES = 32
+_MAX_EXPORT_RECORDS = 10000
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS user_events (
     record_id TEXT PRIMARY KEY,
@@ -189,25 +205,157 @@ def _validate_limit(limit: int) -> None:
         raise RecordValidationError("limit must be an integer between 1 and 1000")
 
 
-class SQLiteEmotionStore:
-    """Local SQLite store with explicit separation between user and agent records."""
 
-    def __init__(self, database: str | Path) -> None:
+def generate_encryption_key() -> bytes:
+    """Generate a random 256-bit key. The caller must store it outside the database."""
+    return secrets.token_bytes(_KEY_BYTES)
+
+
+def _associated_data(record_id: str) -> bytes:
+    return b"emotion-engine:user-event:v1:" + record_id.encode("utf-8")
+
+
+def _encrypt_payload(payload: str, key: bytes, record_id: str) -> str:
+    nonce = secrets.token_bytes(_NONCE_BYTES)
+    ciphertext = AESGCM(key).encrypt(
+        nonce,
+        payload.encode("utf-8"),
+        _associated_data(record_id),
+    )
+    encoded = urlsafe_b64encode(nonce + ciphertext).decode("ascii")
+    return _ENCRYPTION_PREFIX + encoded
+
+
+def _decrypt_payload(value: str, key: bytes, record_id: str) -> str:
+    if not isinstance(value, str) or not value.startswith(_ENCRYPTION_PREFIX):
+        raise EncryptionError(
+            "user memory payload is not encrypted with the supported format"
+        )
+    try:
+        raw = urlsafe_b64decode(value[len(_ENCRYPTION_PREFIX):].encode("ascii"))
+    except (ValueError, UnicodeEncodeError):
+        raise EncryptionError("user memory payload is malformed") from None
+    if len(raw) < _NONCE_BYTES + 16:
+        raise EncryptionError("user memory payload is truncated")
+    nonce, ciphertext = raw[:_NONCE_BYTES], raw[_NONCE_BYTES:]
+    try:
+        plaintext = AESGCM(key).decrypt(
+            nonce, ciphertext, _associated_data(record_id)
+        )
+    except (InvalidTag, ValueError):
+        raise EncryptionError(
+            "user memory could not be authenticated; check the key or data integrity"
+        ) from None
+    try:
+        return plaintext.decode("utf-8")
+    except UnicodeDecodeError:
+        raise EncryptionError("decrypted user memory is not valid UTF-8") from None
+
+
+class SQLiteEmotionStore:
+    """SQLite store with AES-256-GCM encrypted user-event payloads."""
+
+    def __init__(
+        self,
+        database: str | Path,
+        *,
+        encryption_key: bytes | None = None,
+        consent_verifier: Callable[[UserEventRecord], bool] | None = None,
+    ) -> None:
         database_value = str(database)
         if not database_value:
             raise RecordValidationError("database path must not be empty")
+        if encryption_key is not None and (
+            not isinstance(encryption_key, bytes) or len(encryption_key) != _KEY_BYTES
+        ):
+            raise RecordValidationError("encryption_key must be exactly 32 bytes")
+        if consent_verifier is not None and not callable(consent_verifier):
+            raise RecordValidationError("consent_verifier must be callable or None")
+
+        self._encryption_key = encryption_key
+        self._consent_verifier = consent_verifier
         self._connection = sqlite3.connect(database_value)
         self._connection.row_factory = sqlite3.Row
         self._connection.execute("PRAGMA foreign_keys = ON")
-        current_version = self._connection.execute("PRAGMA user_version").fetchone()[0]
-        if current_version not in (0, _SCHEMA_VERSION):
-            self._connection.close()
-            raise RuntimeError(
-                f"unsupported database schema version: {current_version}"
-            )
-        self._connection.executescript(_SCHEMA)
-        self._connection.execute(f"PRAGMA user_version = {_SCHEMA_VERSION}")
         self._closed = False
+
+        try:
+            current_version = self._connection.execute(
+                "PRAGMA user_version"
+            ).fetchone()[0]
+            if current_version > _SCHEMA_VERSION:
+                raise RuntimeError(
+                    f"unsupported database schema version: {current_version}"
+                )
+            if current_version == 0:
+                self._connection.executescript(_SCHEMA)
+                self._connection.execute(
+                    f"PRAGMA user_version = {_SCHEMA_VERSION}"
+                )
+            elif current_version == 1:
+                self._migrate_v1_to_v2()
+                self._connection.executescript(_SCHEMA)
+            else:
+                self._connection.executescript(_SCHEMA)
+        except Exception:
+            self._connection.close()
+            self._closed = True
+            raise
+
+    def _migrate_v1_to_v2(self) -> None:
+        """Encrypt legacy plaintext user-event payloads in one transaction."""
+        rows = self._connection.execute(
+            "SELECT record_id, payload_json FROM user_events"
+        ).fetchall()
+        if rows and self._encryption_key is None:
+            raise EncryptionKeyRequiredError(
+                "legacy plaintext memories exist; supply a new 32-byte key to migrate them"
+            )
+
+        with self._connection:
+            for row in rows:
+                payload = row["payload_json"]
+                if isinstance(payload, str) and payload.startswith(_ENCRYPTION_PREFIX):
+                    plaintext = _decrypt_payload(
+                        payload, self._encryption_key, row["record_id"]
+                    )
+                else:
+                    plaintext = payload
+                encrypted = _encrypt_payload(
+                    plaintext, self._encryption_key, row["record_id"]
+                )
+                self._connection.execute(
+                    "UPDATE user_events SET payload_json = ? WHERE record_id = ?",
+                    (encrypted, row["record_id"]),
+                )
+            self._connection.execute(f"PRAGMA user_version = {_SCHEMA_VERSION}")
+
+    def _require_encryption_key(self) -> bytes:
+        if self._encryption_key is None:
+            raise EncryptionKeyRequiredError(
+                "a 32-byte encryption key is required to access user memories"
+            )
+        return self._encryption_key
+
+    def _verify_consent(self, record: UserEventRecord) -> None:
+        if record.consent_status is not ConsentStatus.GRANTED:
+            raise ConsentRequiredError(
+                "user event cannot be persisted without explicit granted consent"
+            )
+        if self._consent_verifier is None:
+            raise ConsentRequiredError(
+                "a trusted application consent_verifier is required; the record flag alone is insufficient"
+            )
+        try:
+            verified = self._consent_verifier(record)
+        except Exception:
+            raise ConsentRequiredError(
+                "consent verification failed; user memory was not stored"
+            ) from None
+        if verified is not True:
+            raise ConsentRequiredError(
+                "the application consent verifier did not approve this memory"
+            )
 
     def _ensure_open(self) -> None:
         if self._closed:
@@ -230,12 +378,14 @@ class SQLiteEmotionStore:
         self._ensure_open()
         if not isinstance(record, UserEventRecord):
             raise RecordValidationError("record must be a UserEventRecord")
-        if record.consent_status is not ConsentStatus.GRANTED:
-            raise ConsentRequiredError(
-                "user event cannot be persisted without explicit granted consent"
-            )
+        self._require_encryption_key()
+        self._verify_consent(record)
 
-        payload = _dump(_event_to_payload(record))
+        payload = _encrypt_payload(
+            _dump(_event_to_payload(record)),
+            self._encryption_key,
+            record.record_id,
+        )
         with self._connection:
             self._connection.execute(
                 """
@@ -257,12 +407,14 @@ class SQLiteEmotionStore:
         self._ensure_open()
         if not isinstance(record, UserEventRecord):
             raise RecordValidationError("record must be a UserEventRecord")
-        if record.consent_status is not ConsentStatus.GRANTED:
-            raise ConsentRequiredError(
-                "user event cannot be updated without current granted consent"
-            )
+        self._require_encryption_key()
+        self._verify_consent(record)
 
-        payload = _dump(_event_to_payload(record))
+        payload = _encrypt_payload(
+            _dump(_event_to_payload(record)),
+            self._encryption_key,
+            record.record_id,
+        )
         with self._connection:
             cursor = self._connection.execute(
                 """
@@ -283,24 +435,102 @@ class SQLiteEmotionStore:
 
     def get_user_event(self, record_id: str) -> UserEventRecord | None:
         self._ensure_open()
+        key = self._require_encryption_key()
         row = self._connection.execute(
-            "SELECT payload_json FROM user_events WHERE record_id = ?",
+            "SELECT record_id, payload_json FROM user_events WHERE record_id = ?",
             (record_id,),
         ).fetchone()
-        return _event_from_payload(json.loads(row["payload_json"])) if row else None
+        return (
+            _event_from_payload(
+                json.loads(
+                    _decrypt_payload(row["payload_json"], key, row["record_id"])
+                )
+            )
+            if row
+            else None
+        )
 
     def list_user_events(self, *, limit: int = 100) -> tuple[UserEventRecord, ...]:
         self._ensure_open()
+        key = self._require_encryption_key()
         _validate_limit(limit)
         rows = self._connection.execute(
             """
-            SELECT payload_json FROM user_events
+            SELECT record_id, payload_json FROM user_events
             ORDER BY recorded_at DESC, record_id ASC
             LIMIT ?
             """,
             (limit,),
         ).fetchall()
-        return tuple(_event_from_payload(json.loads(row["payload_json"])) for row in rows)
+        return tuple(
+            _event_from_payload(
+                json.loads(
+                    _decrypt_payload(row["payload_json"], key, row["record_id"])
+                )
+            )
+            for row in rows
+        )
+
+    def export_user_events(self) -> str:
+        """Return a versioned JSON export of user memories only."""
+        self._ensure_open()
+        key = self._require_encryption_key()
+        rows = self._connection.execute(
+            """
+            SELECT record_id, payload_json FROM user_events
+            ORDER BY recorded_at ASC, record_id ASC
+            LIMIT ?
+            """,
+            (_MAX_EXPORT_RECORDS + 1,),
+        ).fetchall()
+        if len(rows) > _MAX_EXPORT_RECORDS:
+            raise RecordValidationError(
+                f"export exceeds the safety limit of {_MAX_EXPORT_RECORDS} records"
+            )
+        records = [
+            _event_to_payload(
+                _event_from_payload(
+                    json.loads(
+                        _decrypt_payload(row["payload_json"], key, row["record_id"])
+                    )
+                )
+            )
+            for row in rows
+        ]
+        return json.dumps(
+            {
+                "format": "emotion-engine-user-events",
+                "format_version": 1,
+                "exported_at": datetime.now(timezone.utc).isoformat(),
+                "record_count": len(records),
+                "records": records,
+            },
+            ensure_ascii=False,
+            separators=(",", ":"),
+            allow_nan=False,
+        )
+
+    def delete_user_events_before(self, cutoff: datetime) -> int:
+        """Delete memories recorded before an explicit timezone-aware cutoff."""
+        self._ensure_open()
+        if (
+            not isinstance(cutoff, datetime)
+            or cutoff.tzinfo is None
+            or cutoff.utcoffset() is None
+        ):
+            raise RecordValidationError(
+                "cutoff must be a timezone-aware datetime"
+            )
+        cutoff_utc = cutoff.astimezone(timezone.utc).isoformat()
+        with self._connection:
+            cursor = self._connection.execute(
+                """
+                DELETE FROM user_events
+                WHERE julianday(recorded_at) < julianday(?)
+                """,
+                (cutoff_utc,),
+            )
+        return cursor.rowcount
 
     def delete_user_event(self, record_id: str) -> bool:
         """Delete one user memory; return False when it was already absent."""
