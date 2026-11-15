@@ -92,4 +92,8 @@ The first is a bounded hypothesis with visible uncertainty. The second invents a
 3. Scherer, K. R. (2001). *Appraisal Considered as a Process of Multilevel Sequential Checking*. In *Appraisal Processes in Emotion: Theory, Methods, Research*. https://doi.org/10.1093/oso/9780195130072.003.0005
 4. Barrett, L. F. (2017). *The theory of constructed emotion: an active inference account of interoception and categorization*. Social Cognitive and Affective Neuroscience, 12(1), 1–23. https://doi.org/10.1093/scan/nsw154
 
+5. Scherer, K. R. (2009). *Emotions are emergent processes: they require a dynamic computational architecture*. Philosophical Transactions of the Royal Society B, 364(1535), 3459–3474. https://doi.org/10.1098/rstb.2009.0141
+
+This paper is especially relevant to the project's computational modelling question: it discusses dynamic architectures for modelling emotion-related processes in virtual agents. It is a design and theory contribution, not evidence that a virtual agent has subjective experience.
+
 These are starting points for a research catalogue, not proof that any one model is complete or universally accepted.
