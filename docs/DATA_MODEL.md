@@ -1,112 +1,116 @@
-# Proposed Data Model
+# Data Model
 
-**Status:** conceptual schema only. No database or API is implemented yet.
+**Status:** initial typed record and SQLite implementation exists in the Phase 1 prototype. The schema remains versioned and subject to review.
 
 ## 1. Data separation
 
-Do not use one generic emotion object for every kind of record. At minimum, distinguish:
+Do not use one generic emotion object for every kind of record. The first implementation distinguishes:
 
 - **user_event** — an event involving the user and any user-reported affect;
-- **agent_action** — an action taken by Lilith or one of its components;
-- **state_transition** — a validated change in an internal computational variable;
-- **reflection** — a bounded, evidence-linked review of an agent action or outcome.
+- **agent_action** — a technical action taken by Lilith or one of its components;
+- **state_transition** — a validated change in an explicit internal computational variable.
 
-This separation prevents a program variable from being mistaken for a user's feeling, or a generated self-description from being mistaken for evidence of subjective experience.
+A reflection record will be added in a later phase. These record kinds must not be merged into one undifferentiated emotion object.
 
-## 2. Proposed event record
+## 2. Typed records
 
-The following is illustrative JSON, not an implemented or final schema:
+The package `emotion_engine.models` currently defines:
+
+- `UserEventRecord`
+- `EmotionLabel`
+- `Appraisal`
+- `AffectCoordinates`
+- `AgentActionRecord`
+- `StateTransitionRecord`
+
+Records are immutable dataclasses. Their constructors validate required text, enum types, timezone-aware timestamps, numeric ranges, and JSON-scalar state values.
+
+## 3. Provenance and epistemic status
+
+Every emotion label includes an origin:
+
+- `user_reported` — explicitly stated by the user;
+- `system_observed` — derived from a concrete software event or measured state;
+- `model_inferred` — proposed by an LLM and not independently established;
+- `human_confirmed` — explicitly reviewed and confirmed by the user or an authorised operator.
+
+Each label also has an epistemic status: `reported`, `hypothesis`, `confirmed`, `disputed`, or `unknown`.
+
+A model-inferred label cannot be marked as directly reported or confirmed. This is a schema guard, not an independent verification of the psychological interpretation.
+
+## 4. Optional numeric annotations
+
+The first implementation supports optional values:
+
+- valence: `-1.0` to `+1.0`;
+- arousal: `0.0` to `1.0`;
+- appraisal relevance: `0.0` to `1.0`;
+- expectedness: `0.0` to `1.0`;
+- goal congruence: `-1.0` to `+1.0`;
+- coping potential: `0.0` to `1.0`;
+- normative significance: `0.0` to `1.0`.
+
+Null means unknown or not assessed. These values are computational annotations, not measurements of a person's true internal experience. No model confidence score is treated as emotion intensity.
+
+## 5. Consent lifecycle
+
+The model defines:
+
+- `ephemeral` — may be used for the current response but not stored as a memory;
+- `pending` — a save proposal has been made, but no approval exists;
+- `granted` — the user explicitly approved storage;
+- `revoked` — the user withdrew permission.
+
+The SQLite store rejects user-event inserts and updates unless the record carries `granted`. The application layer must obtain that approval from the user; a model cannot grant consent on the user's behalf. This check is not a substitute for application-level identity and permission controls.
+
+## 6. Persistence API
+
+`SQLiteEmotionStore` currently provides:
+
+- `save_user_event(record)`
+- `get_user_event(record_id)`
+- `list_user_events(limit=100)`
+- `update_user_event(record)`
+- `delete_user_event(record_id)`
+- `delete_all_user_events()`
+- `record_agent_action(record)`
+- `get_agent_action(action_id)`
+- `record_state_transition(record)`
+- `list_state_transitions(state_key=None, limit=100)`
+
+The store uses parameterised SQL and a foreign key from state transitions to agent actions. It supports the in-memory SQLite database for isolated tests.
+
+## 7. Example record
+
+The following is illustrative JSON, not a direct serialisation contract for the Python dataclass:
 
 ~~~json
 {
   "schema_version": "0.1",
   "record_id": "generated-id",
   "record_kind": "user_event",
-  "subject": "user",
   "occurred_at": "2026-11-15T10:30:00+01:00",
-  "recorded_at": "2026-11-15T10:31:00+01:00",
-  "source": {
-    "kind": "user_reported",
-    "event_id": "conversation-event-reference"
-  },
-  "consent": {
-    "status": "granted",
-    "confirmed_at": "2026-11-15T10:31:00+01:00"
-  },
-  "event": {
-    "summary": "User-confirmed short description of an important event"
-  },
-  "appraisal": {
-    "relevance": null,
-    "goal_congruence": null,
-    "expectedness": null,
-    "coping_potential": null,
-    "normative_significance": null
-  },
-  "affect_model": {
-    "valence": null,
-    "arousal": null
-  },
+  "source_origin": "user_reported",
+  "consent_status": "granted",
+  "summary": "A user-confirmed short description of an important event",
   "emotion_labels": [
     {
       "label": "relief",
       "origin": "user_reported",
-      "confidence": null
+      "status": "reported"
+    },
+    {
+      "label": "disappointment",
+      "origin": "model_inferred",
+      "status": "hypothesis"
     }
   ],
   "uncertainties": [
     "The cause of the reported emotion has not been established."
-  ],
-  "retention": {
-    "class": "user_controlled",
-    "expires_at": null
-  }
+  ]
 }
 ~~~
 
-Null means unknown or not assessed. It must not be replaced with a guessed value.
+## 8. Storage and privacy limitation
 
-## 3. Numeric conventions
-
-If a later implementation uses numeric values, it must publish and validate a fixed scale:
-
-- valence: -1.0 to +1.0;
-- arousal: 0.0 to 1.0;
-- appraisal dimensions: use a documented scale with explicit meaning for each endpoint.
-
-The numeric value is a model coordinate, not a measurement of a person's true internal experience. Confidence is not the same as intensity.
-
-## 4. Model inference record
-
-A model inference should be stored separately from a confirmed user report. It should include:
-
-- model/provider identifier and version, if available;
-- prompt/schema version;
-- the evidence references used;
-- alternative interpretations;
-- unknowns and uncertainty;
-- creation time;
-- whether the user confirmed, rejected, or corrected it.
-
-Raw prompts and full transcripts should not be retained by default. Store only the minimum summary needed for the purpose.
-
-## 5. Consent lifecycle
-
-Proposed states:
-
-- **ephemeral** — may be used for the current response but not stored as a memory;
-- **pending** — a save proposal has been made, but no approval exists;
-- **granted** — the user explicitly approved storage;
-- **revoked** — the user withdrew permission; the memory and user-derived copies must be deleted according to the deletion policy.
-
-Consent is a hard storage gate. An LLM cannot grant consent on a user's behalf.
-
-## 6. Deletion, correction, and export
-
-A future implementation must support listing stored memories in understandable language, editing a summary or correcting an interpretation, deleting one record and its derived references, exporting records in a documented format, and checking that deleted records are no longer retrievable.
-
-The exact handling of backups, indexes, and database encryption must be decided before real personal data is stored.
-
-## 7. Storage proposal
-
-SQLite is a reasonable first local persistence layer because it is lightweight and available in Python's standard library. This is a proposal, not a settled decision. Encryption at rest, migrations, backup handling, and data deletion guarantees must be designed and tested before storing sensitive emotional memories.
+SQLite is used because it is lightweight and available in Python's standard library. The current implementation does **not** encrypt the database or manage encryption keys. Use synthetic fixtures only. Encryption at rest, key handling, filesystem permissions, backup behaviour, retention expiry, derived-record deletion, and user-facing export must be designed and tested before storing real personal emotional data.
