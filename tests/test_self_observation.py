@@ -48,26 +48,27 @@ def output(
     next_question="Which decision input caused the answer to diverge from the tool result?",
     next_question_reason="The current trace shows a mismatch but does not identify the selected input.",
     evidence_to_collect=None,
+    evidence_id="trace-001",
 ):
     return json.dumps({
         "schema_version": "0.1",
         "assessment": assessment,
         "finding": finding,
-        "finding_evidence_refs": ["trace-001"] if finding_refs is None else finding_refs,
+        "finding_evidence_refs": [evidence_id] if finding_refs is None else finding_refs,
         "inquiry_answer": answer,
         "inquiry_answer_evidence_refs": [] if answer_refs is None else answer_refs,
         "causal_hypotheses": [{
             "statement": "The answer may have used stale context rather than the current tool result.",
-            "evidence_refs": ["trace-001"],
+            "evidence_refs": [evidence_id],
         }] if hypotheses is None else hypotheses,
         "limitations": ["The supplied trace does not expose hidden model computation."]
             if limitations is None else limitations,
         "next_question": next_question,
         "next_question_reason": next_question_reason,
+        "next_question_evidence_refs": [evidence_id] if next_question is not None else [],
         "evidence_to_collect": ["The selected source identifier and timestamp."]
             if evidence_to_collect is None else evidence_to_collect,
     })
-
 
 class FakeGenerator:
     def __init__(self, outputs=None, error=None):
@@ -141,6 +142,7 @@ class SelfObservationEngineTests(unittest.TestCase):
             output(
                 answer="The source-selection log shows the cache was selected.",
                 answer_refs=["trace-002"],
+                evidence_id="trace-002",
                 next_question=None,
                 next_question_reason=None,
                 evidence_to_collect=[],
@@ -228,12 +230,20 @@ class SelfObservationEngineTests(unittest.TestCase):
             engine.start(action(), (evidence(),))
 
     def test_inquiry_answer_requires_evidence_references(self):
-        engine = self.make_engine(outputs=[output(
-            answer="The cache selection explains the mismatch.",
-            answer_refs=[],
-        )])
+        engine = self.make_engine(outputs=[
+            output(),
+            output(
+                answer="The cache selection explains the mismatch.",
+                answer_refs=[],
+                evidence_id="trace-002",
+            ),
+        ])
+        cascade = engine.start(action(), (evidence(),))
         with self.assertRaises(ModelOutputError):
-            engine.start(action(), (evidence(),))
+            engine.continue_cascade(
+                cascade,
+                (evidence("trace-002", "A source-selection log."),),
+            )
 
     def test_next_question_requires_concrete_evidence_request(self):
         engine = self.make_engine(outputs=[output(evidence_to_collect=[])])
@@ -246,6 +256,14 @@ class SelfObservationEngineTests(unittest.TestCase):
             next_question_reason="There is no further evidence request.",
             evidence_to_collect=[],
         )])
+        with self.assertRaises(ModelOutputError):
+            engine.start(action(), (evidence(),))
+
+
+    def test_next_question_must_cite_current_evidence(self):
+        raw = json.loads(output())
+        raw["next_question_evidence_refs"] = ["not-in-input"]
+        engine = self.make_engine(outputs=[json.dumps(raw)])
         with self.assertRaises(ModelOutputError):
             engine.start(action(), (evidence(),))
 
