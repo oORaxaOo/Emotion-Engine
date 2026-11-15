@@ -17,11 +17,11 @@ The project can implement affective computation, self-monitoring, memory, and co
 
 ## Status
 
-**Current stage:** Phase 1 — data foundation prototype, under review in [PR #2](https://github.com/oORaxaOo/Emotion-Engine/pull/2).
+**Phase 1 — Data foundation:** merged in PR #2. It provides validated records, consent-gated user-event persistence, separate agent-action and state-transition records, and in-memory SQLite tests.
 
-The initial standalone Python data layer includes validated records, consent-gated user-event persistence, separate agent-action and state-transition records, and in-memory SQLite tests. There is not yet an emotion-analysis engine, an internal-state transition policy, or a Hermes integration.
+**Phase 2 — Appraisal prototype:** implemented in the current development branch. It adds a versioned concept catalogue and deterministic assessment of explicitly supplied appraisal dimensions. It does not infer feelings from free text and does not write to memory.
 
-**Privacy warning:** the current SQLite prototype does not encrypt its database. Use synthetic test data only. Do not store real personal or emotional memories until encryption, key handling, access controls, backups, and deletion behaviour have been designed and verified.
+**Privacy warning:** the SQLite prototype does not encrypt its database. Use synthetic test data only. Do not store real personal or emotional memories until encryption, key handling, access controls, backups, and deletion behaviour have been designed and verified.
 
 ## Architecture at a glance
 
@@ -46,6 +46,7 @@ The initial standalone Python data layer includes validated records, consent-gat
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Concepts and research foundations](docs/CONCEPTS.md)
+- [Phase 2 appraisal prototype](docs/PHASE_2_APPRAISAL.md)
 - [Proposed data model](docs/DATA_MODEL.md)
 - [Safety and privacy](docs/SAFETY_AND_PRIVACY.md)
 - [Research and evaluation plan](docs/RESEARCH_PLAN.md)
@@ -61,12 +62,12 @@ python -m unittest discover -s tests -v
 
 The test suite uses only Python's standard library and an in-memory SQLite database.
 
-## Initial development sequence
+## Development sequence
 
-- **Phase 0 — Specification:** completed as the initial architecture and research documentation.
-- **Phase 1 — Data foundation:** initial prototype implemented; requires review and CI verification.
-- **Phase 2 — Appraisal prototype:** structured event analysis with uncertainty and alternatives.
-- **Phase 3 — Memory:** explicit consent, retrieval, correction, and retention controls.
+- **Phase 0 — Specification:** initial architecture and research documentation.
+- **Phase 1 — Data foundation:** merged; local prototype with validated records and consent-gated persistence.
+- **Phase 2 — Appraisal prototype:** current development branch; structured analysis, unknowns, and review flags.
+- **Phase 3 — Interpretation adapter:** optional bounded LLM proposals with explicit uncertainty and provenance.
 - **Phase 4 — Internal state and self-observation:** bounded state transitions and auditable reflection.
 - **Phase 5 — Research harness:** repeatable experiments, baselines, and ablation tests.
 - **Phase 6 — Hermes adapter:** integrate only after the standalone engine is tested.
