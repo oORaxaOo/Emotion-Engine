@@ -1,7 +1,11 @@
 """Hermes plugin contract tests using the public plugin context shape."""
 
 import json
+import subprocess
+import sys
+import tempfile
 import unittest
+from pathlib import Path
 
 import hermes_plugin
 
@@ -61,6 +65,27 @@ class HermesPluginTests(unittest.TestCase):
     def call(self, tool, args=None, session="session-A"):
         return json.loads(self.ctx.tools[tool]["handler"](args or {}, session_id=session))
 
+    def test_plugin_entrypoint_loads_as_a_package_without_repo_on_sys_path(self):
+        root = Path(__file__).resolve().parents[1]
+        code = (
+            "import importlib.util, sys; "
+            "root=sys.argv[1]; "
+            "spec=importlib.util.spec_from_file_location("
+            "'isolated_emotion_plugin', root + '/__init__.py', "
+            "submodule_search_locations=[root]); "
+            "module=importlib.util.module_from_spec(spec); "
+            "sys.modules[spec.name]=module; "
+            "spec.loader.exec_module(module); "
+            "assert callable(module.register)"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", code, str(root)],
+            cwd=tempfile.gettempdir(),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
     def test_registers_tools_hook_and_own_auxiliary_route(self):
         self.assertIn("emotion_list_recent_actions", self.ctx.tools)
         self.assertIn("emotion_reflect", self.ctx.tools)
