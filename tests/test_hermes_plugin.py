@@ -5,6 +5,9 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import sys
+import types
+from unittest.mock import Mock, patch
 from pathlib import Path
 
 import hermes_plugin
@@ -40,8 +43,12 @@ class FakeLLM:
 
 
 class FakeContext:
-    def __init__(self, outputs=None):
+    def __init__(self, outputs=None, settings=None):
         self.llm = FakeLLM(outputs)
+        self.settings = settings or {}
+
+    def get_config(self, key, default=None):
+        return self.settings.get(key, default)
         self.tools = {}
         self.hooks = {}
         self.auxiliary = []
@@ -109,6 +116,68 @@ class HermesPluginTests(unittest.TestCase):
         self.assertNotIn("PRIVATE USER MESSAGE", json.dumps(listed))
         other = self.call("emotion_list_recent_actions", session="session-B")
         self.assertEqual(other["actions"], [])
+
+    def test_reflection_publishes_only_bounded_metadata_to_kie(self):
+        publisher = Mock()
+        fake_kie = types.ModuleType("kie")
+        fake_kie.__path__ = []
+        fake_publisher_module = types.ModuleType("kie.publisher")
+        fake_publisher_module.publish_emotion_reflection = publisher
+        with patch.dict(sys.modules, {"kie": fake_kie, "kie.publisher": fake_publisher_module}):
+            ctx = FakeContext(
+                [reflection_output(next_question="PRIVATE NEXT QUESTION")],
+                {"kie_database": "/tmp/kie-emotion-test.sqlite3"},
+            )
+            hermes_plugin.register(ctx)
+            hook = ctx.hooks["post_llm_call"]
+            hook(session_id="session-A", assistant_response="PRIVATE ASSISTANT RESPONSE")
+            action_id = json.loads(ctx.tools["emotion_list_recent_actions"]["handler"](
+                {"limit": 8}, session_id="session-A"
+            ))["actions"][0]["action_id"]
+            result = json.loads(ctx.tools["emotion_reflect"]["handler"](
+                {"action_id": action_id}, session_id="session-A"
+            ))
+
+        self.assertTrue(result["ok"])
+        publisher.assert_called_once()
+        args, kwargs = publisher.call_args
+        self.assertEqual(args[0], "/tmp/kie-emotion-test.sqlite3")
+        self.assertEqual(kwargs["status"], "awaiting_evidence")
+        self.assertEqual(kwargs["step_count"], 1)
+        self.assertEqual(kwargs["assessments"], ("undetermined",))
+        self.assertTrue(kwargs["next_question_available"])
+        serialized = repr(kwargs)
+        self.assertNotIn("PRIVATE NEXT QUESTION", serialized)
+        self.assertNotIn("PRIVATE ASSISTANT RESPONSE", serialized)
+        self.assertNotIn("finding", serialized)
+        self.assertNotIn("evidence", serialized)
+
+    def test_kie_publication_failure_does_not_break_reflection(self):
+        publisher = Mock(side_effect=OSError("database unavailable"))
+        fake_kie = types.ModuleType("kie")
+        fake_kie.__path__ = []
+        fake_publisher_module = types.ModuleType("kie.publisher")
+        fake_publisher_module.publish_emotion_reflection = publisher
+        with patch.dict(sys.modules, {"kie": fake_kie, "kie.publisher": fake_publisher_module}):
+            ctx = FakeContext(
+                [reflection_output(next_question="An independent source?")],
+                {"kie_database": "/tmp/kie-emotion-test.sqlite3"},
+            )
+            hermes_plugin.register(ctx)
+            ctx.hooks["post_llm_call"](session_id="session-A", assistant_response="A response.")
+            actions = json.loads(ctx.tools["emotion_list_recent_actions"]["handler"](
+                {"limit": 8}, session_id="session-A"
+            ))
+            result = json.loads(ctx.tools["emotion_reflect"]["handler"](
+                {"action_id": actions["actions"][0]["action_id"]}, session_id="session-A"
+            ))
+        self.assertTrue(result["ok"])
+        publisher.assert_called_once()
+
+    def test_relative_kie_path_disables_publication(self):
+        ctx = FakeContext(settings={"kie_database": "relative/kie.sqlite3"})
+        hermes_plugin.register(ctx)
+        self.assertNotIn("_kie_publisher", ctx.__dict__)
 
     def test_reflection_uses_captured_response_and_calls_hermes_once(self):
         self.hook(session_id="session-A", assistant_response="I answered 42.")
