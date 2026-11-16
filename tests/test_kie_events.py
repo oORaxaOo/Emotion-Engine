@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
-from emotion_engine.kie_events import publish_reflection_completed
+from emotion_engine.kie_events import publish_reflection_completed, publish_reflection_failed
 
 
 class _CaptureServer(socketserver.ThreadingUnixStreamServer):
@@ -67,6 +67,16 @@ class KIEEventPublisherTests(unittest.TestCase):
         })
         self.assertNotIn("private hypothesis", json.dumps(message))
         self.assertNotIn("private limitation", json.dumps(message))
+
+
+
+    def test_failure_publisher_sends_only_stable_failure_code(self):
+        message = self._capture(lambda path: publish_reflection_failed(path))
+        self.assertEqual(message["engine_id"], "emotion")
+        self.assertEqual(message["event_type"], "emotion.reflection_failed")
+        self.assertEqual(message["payload"], {"failure_code": "reflection_handler_error"})
+        self.assertNotIn("exception", json.dumps(message))
+        self.assertNotIn("private", json.dumps(message))
 
     def test_publisher_is_disabled_without_socket_path(self):
         cascade = SimpleNamespace(
