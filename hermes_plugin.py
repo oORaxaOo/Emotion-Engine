@@ -121,8 +121,11 @@ def register(ctx: Any) -> None:
     except Exception:
         kie_event_socket = None
     def publish_completion(cascade: ReflectionCascade) -> None:
+        # An awaiting-evidence checkpoint is not a completed reflection.
+        if cascade.status.value not in {"completed", "budget_exhausted"}:
+            return
         try:
-            publish_completion(cascade)
+            publish_reflection_completed(kie_event_socket, cascade)
         except Exception as exc:
             logger.warning("Emotion KIE completion event unavailable (%s)", type(exc).__name__)
 
@@ -188,7 +191,7 @@ def register(ctx: Any) -> None:
             evidence = (own_output,) + _parse_evidence(extra, maximum=11) if extra else (own_output,)
             cascade = make_engine().start(action, evidence)
             cascade_id = state.add_cascade(session_id, cascade)
-            publish_reflection_completed(kie_event_socket, cascade)
+            publish_completion(cascade)
             return _json(_render(cascade_id, cascade))
         except Exception as exc:
             logger.warning("Emotion Engine reflection failed (%s)", type(exc).__name__)
