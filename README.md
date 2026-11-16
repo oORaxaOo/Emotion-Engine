@@ -90,3 +90,8 @@ Tests use unittest and in-memory SQLite; encrypted storage uses the cryptography
 - **Phase 8 — Hermes adapter:** integrate only after standalone behaviour is tested.
 
 Every phase must have passing tests and clear limitations before the next phase begins.
+
+
+## KIE event integration
+
+Emotion Engine can optionally publish a `emotion.reflection_completed` metadata event after an explicitly requested reflection reaches a terminal state. Set `kie_event_socket` to the same absolute Unix-socket path configured in KIE. Only lifecycle status, step counts, and aggregate hypothesis/limitation counts are sent. Reflection findings, hypotheses, follow-up questions, assistant responses, user evidence, and session identifiers remain inside the Emotion Engine. No event is sent for an `awaiting_evidence` checkpoint. Publishing is fail-open and disabled without a configured socket.
