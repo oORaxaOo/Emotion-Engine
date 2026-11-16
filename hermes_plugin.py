@@ -120,6 +120,18 @@ def register(ctx: Any) -> None:
         kie_event_socket = ctx.get_config("kie_event_socket", None)
     except Exception:
         kie_event_socket = None
+    def publish_completion(cascade: ReflectionCascade) -> None:
+        try:
+            publish_completion(cascade)
+        except Exception as exc:
+            logger.warning("Emotion KIE completion event unavailable (%s)", type(exc).__name__)
+
+    def publish_failure() -> None:
+        try:
+            publish_failure()
+        except Exception as exc:
+            logger.warning("Emotion KIE failure event unavailable (%s)", type(exc).__name__)
+
     ctx.register_auxiliary_task(TASK_NAME, display_name="Emotion Engine",
         description="Bounded self-observation of recent assistant responses using explicit evidence.")
 
@@ -200,7 +212,7 @@ def register(ctx: Any) -> None:
                     return _error("cascade expired before the result could be saved")
                 session.cascades[cascade_id] = updated
                 session.cascades.move_to_end(cascade_id)
-            publish_reflection_completed(kie_event_socket, updated)
+            publish_completion(updated)
             return _json(_render(cascade_id, updated))
         except Exception as exc:
             logger.warning("Emotion Engine continuation failed (%s)", type(exc).__name__)
