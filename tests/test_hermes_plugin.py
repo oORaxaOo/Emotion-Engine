@@ -205,5 +205,49 @@ class HermesPluginTests(unittest.TestCase):
         self.assertEqual(self.call("emotion_list_recent_actions")["actions"], [])
 
 
+
+
+
+    def test_completed_continuation_publishes_once_and_does_not_recurse(self):
+        ctx = FakeContext(settings={"kie_event_socket": "/tmp/kie-events.sock"})
+        outputs = [
+            reflection_output(next_question="Which independent source verifies this?"),
+            reflection_output(
+                next_question=None,
+                answer="The supplied source log confirms the result.",
+                answer_refs=["source-log-1"],
+                evidence_id="source-log-1",
+            ),
+        ]
+        ctx.llm.outputs = outputs
+        with patch("hermes_plugin.publish_reflection_completed") as completed, patch(
+            "hermes_plugin.publish_reflection_failed"
+        ) as failed:
+            hermes_plugin.register(ctx)
+            ctx.hooks["post_llm_call"](session_id="session-success", assistant_response="The answer is 42.")
+            action_id = json.loads(ctx.tools["emotion_list_recent_actions"]["handler"](
+                {}, session_id="session-success"
+            ))["actions"][0]["action_id"]
+            first = json.loads(ctx.tools["emotion_reflect"]["handler"](
+                {"action_id": action_id}, session_id="session-success"
+            ))
+            final = json.loads(ctx.tools["emotion_continue_reflection"]["handler"](
+                {
+                    "cascade_id": first["cascade_id"],
+                    "evidence": [{
+                        "evidence_id": "source-log-1",
+                        "source": "system_log",
+                        "content": "Independent source log.",
+                    }],
+                },
+                session_id="session-success",
+            ))
+
+        self.assertEqual(first["status"], "awaiting_evidence")
+        self.assertEqual(final["status"], "completed")
+        completed.assert_called_once()
+        self.assertEqual(completed.call_args.args[0], "/tmp/kie-events.sock")
+        self.assertFalse(failed.called)
+
 if __name__ == "__main__":
     unittest.main()
