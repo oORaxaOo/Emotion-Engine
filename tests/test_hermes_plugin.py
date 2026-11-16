@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 import hermes_plugin
@@ -40,11 +41,15 @@ class FakeLLM:
 
 
 class FakeContext:
-    def __init__(self, outputs=None):
+    def __init__(self, outputs=None, settings=None):
         self.llm = FakeLLM(outputs)
+        self.settings = settings or {}
         self.tools = {}
         self.hooks = {}
         self.auxiliary = []
+
+    def get_config(self, key, default=None):
+        return self.settings.get(key, default)
 
     def register_auxiliary_task(self, name, **kwargs):
         self.auxiliary.append((name, kwargs))
@@ -172,6 +177,27 @@ class HermesPluginTests(unittest.TestCase):
         result = self.call("emotion_clear_session")
         self.assertTrue(result["ok"])
         self.assertEqual(self.call("emotion_list_recent_actions")["actions"], [])
+
+
+
+    def test_reflection_handler_failure_publishes_only_health_code_to_kie(self):
+        ctx = FakeContext(settings={"kie_event_socket": "/tmp/kie-events.sock"})
+        with patch("hermes_plugin.publish_reflection_failed") as publish:
+            hermes_plugin.register(ctx)
+            ctx.hooks["post_llm_call"](
+                session_id="session-fail",
+                assistant_response="A captured response.",
+            )
+            action_id = json.loads(ctx.tools["emotion_list_recent_actions"]["handler"](
+                {}, session_id="session-fail"
+            ))["actions"][0]["action_id"]
+            ctx.llm.complete = lambda **kwargs: (_ for _ in ()).throw(RuntimeError("private failure details"))
+            result = json.loads(ctx.tools["emotion_reflect"]["handler"](
+                {"action_id": action_id}, session_id="session-fail"
+            ))
+
+        self.assertFalse(result["ok"])
+        publish.assert_called_once_with("/tmp/kie-events.sock")
 
     def test_hook_ignores_empty_or_missing_response(self):
         self.hook(session_id="session-A", assistant_response="")

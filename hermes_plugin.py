@@ -7,11 +7,11 @@ from typing import Any
 from uuid import uuid4
 try:
     from .emotion_engine import ActionOutcome, AgentActionRecord, ReflectionCascade, ReflectionEvidence, ReflectionEvidenceSource, SelfObservationEngine
-    from .emotion_engine.kie_events import publish_reflection_completed
+    from .emotion_engine.kie_events import publish_reflection_completed, publish_reflection_failed
 except ImportError:
     # Allows the same adapter to be unit-tested as a top-level module.
     from emotion_engine import ActionOutcome, AgentActionRecord, ReflectionCascade, ReflectionEvidence, ReflectionEvidenceSource, SelfObservationEngine
-    from emotion_engine.kie_events import publish_reflection_completed
+    from emotion_engine.kie_events import publish_reflection_completed, publish_reflection_failed
 
 logger = logging.getLogger(__name__)
 PLUGIN_ID = "emotion-engine"
@@ -120,6 +120,18 @@ def register(ctx: Any) -> None:
         kie_event_socket = ctx.get_config("kie_event_socket", None)
     except Exception:
         kie_event_socket = None
+    def publish_completion(cascade: ReflectionCascade) -> None:
+        try:
+            publish_completion(cascade)
+        except Exception as exc:
+            logger.warning("Emotion KIE completion event unavailable (%s)", type(exc).__name__)
+
+    def publish_failure() -> None:
+        try:
+            publish_reflection_failed(kie_event_socket)
+        except Exception as exc:
+            logger.warning("Emotion KIE failure event unavailable (%s)", type(exc).__name__)
+
     ctx.register_auxiliary_task(TASK_NAME, display_name="Emotion Engine",
         description="Bounded self-observation of recent assistant responses using explicit evidence.")
 
@@ -180,6 +192,7 @@ def register(ctx: Any) -> None:
             return _json(_render(cascade_id, cascade))
         except Exception as exc:
             logger.warning("Emotion Engine reflection failed (%s)", type(exc).__name__)
+            publish_failure()
             return _error("reflection failed; no result was retained")
 
     def continue_reflection(args: dict[str, Any], **kwargs: Any) -> str:
@@ -199,10 +212,11 @@ def register(ctx: Any) -> None:
                     return _error("cascade expired before the result could be saved")
                 session.cascades[cascade_id] = updated
                 session.cascades.move_to_end(cascade_id)
-            publish_reflection_completed(kie_event_socket, updated)
+            publish_completion(updated)
             return _json(_render(cascade_id, updated))
         except Exception as exc:
             logger.warning("Emotion Engine continuation failed (%s)", type(exc).__name__)
+            publish_failure()
             return _error("continuation failed; previous valid cascade was retained")
 
     def clear_session(args: dict[str, Any], **kwargs: Any) -> str:
