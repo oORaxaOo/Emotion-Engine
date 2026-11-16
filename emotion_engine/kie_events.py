@@ -8,7 +8,7 @@ from typing import Any
 from uuid import uuid4
 
 _MAX_MESSAGE_BYTES = 64 * 1024
-_ALLOWED_STATUSES = frozenset({"awaiting_evidence", "completed", "budget_exhausted"})
+_ALLOWED_STATUSES = frozenset({"completed", "budget_exhausted"})
 
 
 def publish_reflection_completed(socket_path: str | Path | None, cascade: Any) -> bool:
