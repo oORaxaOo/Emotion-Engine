@@ -18,6 +18,6 @@ provides_hooks:
 config_schema:
   kie_event_socket:
     type: string
-    default: ""
+    default: "~/.hermes/run/kie-engine-events.sock"
 python_dependencies:
   - "cryptography>=42.0.0,<47"
