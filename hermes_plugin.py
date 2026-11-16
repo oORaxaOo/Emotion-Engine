@@ -122,7 +122,7 @@ def register(ctx: Any) -> None:
         kie_event_socket = None
     def publish_completion(cascade: ReflectionCascade) -> None:
         try:
-            publish_reflection_completed(kie_event_socket, cascade)
+            publish_completion(cascade)
         except Exception as exc:
             logger.warning("Emotion KIE completion event unavailable (%s)", type(exc).__name__)
 
@@ -192,7 +192,7 @@ def register(ctx: Any) -> None:
             return _json(_render(cascade_id, cascade))
         except Exception as exc:
             logger.warning("Emotion Engine reflection failed (%s)", type(exc).__name__)
-            publish_reflection_failed(kie_event_socket)
+            publish_failure()
             return _error("reflection failed; no result was retained")
 
     def continue_reflection(args: dict[str, Any], **kwargs: Any) -> str:
@@ -216,7 +216,7 @@ def register(ctx: Any) -> None:
             return _json(_render(cascade_id, updated))
         except Exception as exc:
             logger.warning("Emotion Engine continuation failed (%s)", type(exc).__name__)
-            publish_reflection_failed(kie_event_socket)
+            publish_failure()
             return _error("continuation failed; previous valid cascade was retained")
 
     def clear_session(args: dict[str, Any], **kwargs: Any) -> str:
