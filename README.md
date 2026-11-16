@@ -1,6 +1,8 @@
 # Emotion Engine
 
-**Emotion Engine** is a research-oriented, local-first project for Lilith. It explores emotional-event modelling, persistent memory, bounded internal state, and self-observation in a transparent and testable software system.
+**Emotion Engine** is a research-oriented, local-first project for Lilith. It
+explores emotional-event modelling, persistent memory, bounded internal
+state, and self-observation in a transparent and testable software system.
 
 ## Research objective
 
@@ -13,28 +15,34 @@ Build a system that can:
 
 ## Important distinction
 
-Affective computation, self-monitoring, memory, and complex adaptive behaviour do not by themselves demonstrate subjective experience, sentience, or life. The project reports what it measures and does not claim more.
+Affective computation, self-monitoring, memory, and complex adaptive behaviour
+do not by themselves demonstrate subjective experience, sentience, or life.
+The project reports what it measures and does not claim more.
+
+## Optional KIE integration
+
+The Hermes adapter can optionally publish a bounded
+`emotion.reflection_summary` event to the KIE event ledger after an explicit
+reflection call. Only status labels and aggregate counts are shared. Reflection
+narratives, assistant response text, evidence content, causal hypotheses,
+next-question text, and persistent emotional-memory records remain inside
+the Emotion Engine.
+
+The integration is opt-in and fail-open. It does not expose the persistent
+emotional-memory APIs or create emotional memories.
 
 ## Status
 
-**Phase 1 — Data foundation:** merged in PR #2. Validated records, consent-gated user-event persistence, separate agent-action and state-transition records, and in-memory SQLite tests.
-
-**Phase 2 — Appraisal prototype:** merged in PR #3. Versioned psychological concepts and deterministic assessment of explicitly supplied appraisal dimensions.
-
-**Phase 3 — Interpretation contract:** merged in PR #4. A strict, provider-neutral parser validates model proposals, explicit evidence references, appraisal notes, emotion hypotheses, alternatives, and unknowns.
-
-**Phase 4 — Bounded model adapter:** merged in PR #5. A one-shot provider-neutral adapter accepts a small caller-selected evidence envelope, requests strict JSON, validates the response, and returns an ephemeral proposal. It performs no database writes and does not change internal state.
-
-**Phase 5 — Memory lifecycle and privacy:** merged in PR #6. User-event payload encryption, a required application consent verifier, versioned export, explicit retention, and review/forget operations are implemented. Host-level access control, key custody, and backup protection remain external requirements.
-
-**Privacy warning:** Phase 5 encrypts user-event payloads, but it does not encrypt the entire SQLite database. Record IDs and timestamps, technical action/state tables, local backups, and exported JSON remain outside that payload-encryption boundary. The host application must securely store the 32-byte key, implement real user consent UI and access control, and manage backups/logs. Do not use real personal or emotional data until those deployment controls have been implemented and reviewed.
+Phases 1–6 and the initial Hermes plugin adapter are implemented in the
+standalone repository. The plugin has not been installed or enabled in a live
+Hermes profile.
 
 ## Architecture
 
 1. **Psychological Knowledge Base** — versioned concepts and research references.
 2. **Emotional Event Analysis** — context and appraisal hypotheses.
 3. **Interpretation Contract** — validates bounded model proposals and evidence references.
-4. **Bounded Model Adapter** — makes one controlled call through an injected text-only transport.
+4. **Bounded Model Adapter** — makes one controlled call through an injected text transport.
 5. **Emotional Memory** — user-controlled, provenance-aware event memories.
 6. **Internal State Model** — explicit computational state, not a claim of feeling.
 7. **Self-Observation** — structured review of Lilith's own actions and outcomes.
@@ -50,23 +58,11 @@ Affective computation, self-monitoring, memory, and complex adaptive behaviour d
 6. **Bounded reflection:** self-observation must be finite and auditable.
 7. **Scientific humility:** emergent behaviour is an observation to investigate, not proof of consciousness.
 
-## Documentation
-
-- [Architecture](docs/ARCHITECTURE.md)
-- [Concepts and research foundations](docs/CONCEPTS.md)
-- [Phase 2 appraisal prototype](docs/PHASE_2_APPRAISAL.md)
-- [Phase 3 interpretation contract](docs/PHASE_3_INTERPRETATION_CONTRACT.md)
-- [Phase 4 bounded model adapter](docs/PHASE_4_BOUNDED_MODEL_ADAPTER.md)
-- [Phase 5 memory lifecycle](docs/PHASE_5_MEMORY_LIFECYCLE.md)
-- [Phase 6 self-observation](docs/PHASE_6_SELF_OBSERVATION.md)
-- [Data model](docs/DATA_MODEL.md)
-- [Safety and privacy](docs/SAFETY_AND_PRIVACY.md)
-- [Research and evaluation plan](docs/RESEARCH_PLAN.md)
-- [Hermes integration plan](docs/HERMES_INTEGRATION.md)
+See [Hermes integration](docs/HERMES_INTEGRATION.md) and [Safety and privacy](docs/SAFETY_AND_PRIVACY.md).
 
 ## Local test command
 
-From the repository root, create a virtual environment, install the one encryption dependency, and run the suite:
+From the repository root:
 
 ```bash
 python -m venv .venv
@@ -74,19 +70,3 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 python -m unittest discover -s tests -v
 ```
-
-Tests use unittest and in-memory SQLite; encrypted storage uses the cryptography dependency.
-
-## Development sequence
-
-- **Phase 0 — Specification:** initial architecture and research documentation.
-- **Phase 1 — Data foundation:** merged; validated records and consent-gated persistence.
-- **Phase 2 — Appraisal prototype:** merged; concept catalogue and structured appraisal checks.
-- **Phase 3 — Interpretation contract:** merged; strict validation of bounded model proposals.
-- **Phase 4 — Bounded model adapter:** merged; one-shot injected text transport with output validation.
-- **Phase 5 — Memory lifecycle and privacy:** in development; encrypted user-event payloads, consent verification hook, export, explicit retention, and deletion controls. Host access control and backup policy remain external requirements.
-- **Phase 6 — Bounded self-observation:** merged in PR #7. Evidence-grounded action review, mandatory self-challenge, tentative causal hypotheses, and a generated question cascade limited to four explicit model calls.
-- **Phase 7 — Research harness:** repeatable experiments, baselines, and ablation tests.
-- **Phase 8 — Hermes adapter:** integrate only after standalone behaviour is tested.
-
-Every phase must have passing tests and clear limitations before the next phase begins.

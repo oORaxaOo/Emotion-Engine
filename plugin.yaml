@@ -17,3 +17,7 @@ provides_hooks:
   - post_llm_call
 python_dependencies:
   - "cryptography>=42.0.0,<47"
+config_schema:
+  kie_database:
+    type: string
+    default: ""

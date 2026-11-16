@@ -4,6 +4,7 @@ import json, logging, threading
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import Any
+from pathlib import Path
 from uuid import uuid4
 try:
     from .emotion_engine import ActionOutcome, AgentActionRecord, ReflectionCascade, ReflectionEvidence, ReflectionEvidenceSource, SelfObservationEngine
@@ -112,8 +113,51 @@ def _render(cascade_id: str, cascade: ReflectionCascade) -> dict[str, Any]:
             "next_question": cascade.next_question, "steps": steps,
             "notice": "Model-generated audit proposals, not verified causes or evidence of subjective experience."}
 
+
+def _configured_kie_publisher(ctx: Any):
+    getter = getattr(ctx, "get_config", None)
+    if not callable(getter):
+        return None
+    try:
+        database = getter("kie_database", "")
+    except Exception:
+        return None
+    if not isinstance(database, str) or not database.strip():
+        return None
+    if not Path(database).expanduser().is_absolute():
+        logger.warning("Emotion KIE publication disabled: kie_database must be an absolute path")
+        return None
+    try:
+        from kie.publisher import publish_emotion_reflection
+    except ImportError:
+        logger.warning("Emotion KIE publication disabled: KIE publisher is not installed")
+        return None
+
+    def publish(cascade_id: str, cascade: ReflectionCascade) -> None:
+        try:
+            evidence_ref_count = sum(len(step.used_evidence_ids) for step in cascade.steps)
+            publish_emotion_reflection(
+                database,
+                status=cascade.status.value,
+                step_count=len(cascade.steps),
+                steps_remaining=cascade.steps_remaining,
+                assessments=tuple(step.assessment.value for step in cascade.steps),
+                hypothesis_count=sum(len(step.causal_hypotheses) for step in cascade.steps),
+                evidence_ref_count=evidence_ref_count,
+                next_question_available=bool(cascade.next_question),
+                invocation_count=sum(step.invocation_count for step in cascade.steps),
+                idempotency_key=f"emotion:{cascade_id}:{len(cascade.steps)}",
+            )
+        except Exception as exc:
+            # Reflection remains usable even when the optional KIE ledger is unavailable.
+            logger.warning("Emotion KIE summary publication unavailable (%s)", type(exc).__name__)
+
+    return publish
+
+
 def register(ctx: Any) -> None:
     state = _VolatileState()
+    kie_publisher = _configured_kie_publisher(ctx)
     ctx.register_auxiliary_task(TASK_NAME, display_name="Emotion Engine",
         description="Bounded self-observation of recent assistant responses using explicit evidence.")
 
@@ -170,6 +214,8 @@ def register(ctx: Any) -> None:
             evidence = (own_output,) + _parse_evidence(extra, maximum=11) if extra else (own_output,)
             cascade = make_engine().start(action, evidence)
             cascade_id = state.add_cascade(session_id, cascade)
+            if kie_publisher is not None:
+                kie_publisher(cascade_id, cascade)
             return _json(_render(cascade_id, cascade))
         except Exception as exc:
             logger.warning("Emotion Engine reflection failed (%s)", type(exc).__name__)
@@ -192,6 +238,8 @@ def register(ctx: Any) -> None:
                     return _error("cascade expired before the result could be saved")
                 session.cascades[cascade_id] = updated
                 session.cascades.move_to_end(cascade_id)
+            if kie_publisher is not None:
+                kie_publisher(cascade_id, updated)
             return _json(_render(cascade_id, updated))
         except Exception as exc:
             logger.warning("Emotion Engine continuation failed (%s)", type(exc).__name__)
