@@ -15,5 +15,9 @@ provides_tools:
   - emotion_clear_session
 provides_hooks:
   - post_llm_call
+config_schema:
+  kie_event_socket:
+    type: string
+    default: ""
 python_dependencies:
   - "cryptography>=42.0.0,<47"
