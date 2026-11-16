@@ -122,13 +122,13 @@ def register(ctx: Any) -> None:
         kie_event_socket = None
     def publish_completion(cascade: ReflectionCascade) -> None:
         try:
-            publish_completion(cascade)
+            publish_reflection_completed(kie_event_socket, cascade)
         except Exception as exc:
             logger.warning("Emotion KIE completion event unavailable (%s)", type(exc).__name__)
 
     def publish_failure() -> None:
         try:
-            publish_failure()
+            publish_reflection_failed(kie_event_socket)
         except Exception as exc:
             logger.warning("Emotion KIE failure event unavailable (%s)", type(exc).__name__)
 
